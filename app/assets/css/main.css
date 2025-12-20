@@ -1,0 +1,93 @@
+/* Base styles */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Prevent horizontal scroll */
+#__nuxt {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
+/* Fix grid children overflow - this is the key fix */
+.grid > * {
+  min-width: 0;
+}
+
+/* Ensure all containers respect bounds */
+main, section, article, aside, footer, header {
+  max-width: 100%;
+}
+
+/* Chart.js canvas fix */
+canvas {
+  max-width: 100% !important;
+}
+
+/* Table fix for mobile */
+table {
+  max-width: 100%;
+}
+
+/* Image fix */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Design Tokens */
+:root {
+  --border-width: 2px;
+  --border-color: #000;
+  --radius: 6px;
+  --shadow-sm: 2px 2px 0px #000;
+  --shadow-md: 4px 4px 0px #000;
+  --shadow-lg: 6px 6px 0px #000;
+
+  /* Surf rating colors */
+  --color-epic: #22c55e;
+  --color-good: #4ade80;
+  --color-fair: #facc15;
+  --color-poor: #fb923c;
+  --color-flat: #f87171;
+}
+
+/* Typography */
+.text-section {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+}
+
+.text-meta {
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: #9ca3af;
+}
+
+.text-card-title {
+  font-size: 1.125rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+.text-body {
+  font-size: 1rem;
+  line-height: 1.625;
+}

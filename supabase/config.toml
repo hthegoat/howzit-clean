@@ -1,0 +1,20 @@
+[functions.ingest-data]
+enabled = true
+verify_jwt = true
+import_map = "./functions/ingest-data/deno.json"
+entrypoint = "./functions/ingest-data/index.ts"
+
+[functions.ingest-surfline]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/ingest-surfline/index.ts"
+
+[functions.generate-spot-summary]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/generate-spot-summary/index.ts"
+
+[functions.generate-all-summaries]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/generate-all-summaries/index.ts"
