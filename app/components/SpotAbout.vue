@@ -3,8 +3,8 @@
     <!-- Spot Image -->
     <div class="h-48 sm:h-64 bg-gray-200 relative">
       <img 
-        v-if="spot.image_url" 
-        :src="spot.image_url" 
+        v-if="spot.photo_url" 
+        :src="spot.photo_url" 
         :alt="spot.name"
         class="w-full h-full object-cover"
       />

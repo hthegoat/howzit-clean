@@ -137,6 +137,19 @@ Deno.serve(async (req) => {
             }
         }
 
+        // Trigger summary generation after forecasts are updated
+        try {
+            await fetch(`${supabaseUrl}/functions/v1/generate-all-summaries`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${supabaseKey}`
+                }
+            });
+        } catch (e) {
+            results.errors.push(`Summary generation: ${e instanceof Error ? e.message : "Error"}`);
+        }
+
         return new Response(JSON.stringify({ message: "Complete", ...results }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
