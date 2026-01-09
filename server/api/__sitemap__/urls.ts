@@ -1,19 +1,12 @@
-import { createClient } from '@supabase/supabase-js'
+import { serverSupabaseClient } from '#supabase/server'
 
-export default defineSitemapEventHandler(async () => {
-  const supabaseUrl = process.env.SUPABASE_URL
-  const supabaseKey = process.env.SUPABASE_KEY
+export default defineSitemapEventHandler(async (event) => {
+  const supabase = await serverSupabaseClient(event)
   
-  if (!supabaseUrl || !supabaseKey) {
-    return []
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseKey)
-  
-  // Fetch all spots with their latest forecast timestamp
+  // Fetch all spots
   const { data: spots } = await supabase
     .from('spots')
-    .select('slug, state, updated_at')
+    .select('slug, state')
   
   const urls = []
   const now = new Date().toISOString()

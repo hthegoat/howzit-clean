@@ -14,7 +14,7 @@
       <BrutalCard class="p-6 sm:p-8">
         <form action="https://formsubmit.co/howzitsurfing@gmail.com" method="POST" class="space-y-6">
           <input type="hidden" name="_subject" value="New Waitlist Signup!">
-          <input type="hidden" name="_next" value="https://howzit.surf/spots">
+          <input type="hidden" name="_next" value="https://howzitsurf.com/spots">
           <input type="hidden" name="_captcha" value="false">
           
           <div>
@@ -117,7 +117,7 @@
 </template>
 
 <script setup>
-const siteUrl = 'https://howzit.surf'
+const siteUrl = 'https://howzitsurf.com'
 
 useHead({
   title: 'Join the Waitlist - Howzit',

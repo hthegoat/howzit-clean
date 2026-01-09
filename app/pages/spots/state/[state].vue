@@ -318,7 +318,7 @@ onMounted(async () => {
 })
 
 // SEO
-const siteUrl = 'https://howzit.surf'
+const siteUrl = 'https://howzitsurf.com'
 
 const canonicalUrl = computed(() => 
   stateSlug.value ? `${siteUrl}/spots/state/${stateSlug.value}` : ''

@@ -128,7 +128,7 @@
 </template>
 
 <script setup>
-const siteUrl = 'https://howzit.surf'
+const siteUrl = 'https://howzitsurf.com'
 
 useHead({
   title: 'Howzit - East Coast Surf Forecasts That Don\'t Suck',
