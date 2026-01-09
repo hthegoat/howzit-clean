@@ -10,18 +10,20 @@ export default defineSitemapEventHandler(async () => {
 
   const supabase = createClient(supabaseUrl, supabaseKey)
   
-  // Fetch all spots
+  // Fetch all spots with their latest forecast timestamp
   const { data: spots } = await supabase
     .from('spots')
-    .select('slug, state')
+    .select('slug, state, updated_at')
   
   const urls = []
+  const now = new Date().toISOString()
   
   // Add spot pages
   if (spots) {
     spots.forEach(spot => {
       urls.push({
         loc: `/spots/${spot.slug}`,
+        lastmod: now,
         changefreq: 'hourly',
         priority: 0.8
       })
@@ -32,6 +34,7 @@ export default defineSitemapEventHandler(async () => {
     states.forEach(state => {
       urls.push({
         loc: `/spots/state/${state.toLowerCase().replace(/\s+/g, '-')}`,
+        lastmod: now,
         changefreq: 'hourly',
         priority: 0.7
       })

@@ -16,7 +16,10 @@ export default defineNuxtConfig({
   sitemap: {
     sources: [
       '/api/__sitemap__/urls'
-    ]
+    ],
+    defaults: {
+      lastmod: new Date().toISOString()
+    }
   },
 
   css: ['@/assets/css/main.css'],
