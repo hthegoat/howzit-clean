@@ -10,7 +10,7 @@ export default defineNuxtConfig({
   ],
 
   site: {
-    url: 'https://www.howzitsurf.com',
+    url: 'https://www.hwztsurf.com',
   },
 
   sitemap: {

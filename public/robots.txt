@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://www.howzitsurf.com/sitemap.xml
+Sitemap: https://www.hwztsurf.com/sitemap.xml
