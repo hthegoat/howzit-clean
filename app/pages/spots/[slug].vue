@@ -565,20 +565,70 @@ const canonicalUrl = computed(() =>
   spot.value ? `${siteUrl}/spots/${spot.value.slug}` : ''
 )
 
+// JSON-LD structured data for SEO
+const jsonLd = computed(() => {
+  if (!spot.value) return null
+  
+  const f = latestForecast.value
+  const waveHeight = f?.wave_height ? Math.round(f.wave_height * 3.281) : null
+  
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: `${spot.value.name} Surf Report`,
+    description: metaDescription.value,
+    url: canonicalUrl.value,
+    mainEntity: {
+      '@type': 'Beach',
+      name: spot.value.name,
+      description: spot.value.description || `Surf spot in ${spot.value.region}, ${spot.value.state}`,
+      geo: {
+        '@type': 'GeoCoordinates',
+        latitude: spot.value.latitude,
+        longitude: spot.value.longitude
+      },
+      address: {
+        '@type': 'PostalAddress',
+        addressRegion: spot.value.state,
+        addressLocality: spot.value.region,
+        addressCountry: 'US'
+      }
+    },
+    ...(waveHeight && {
+      mainContentOfPage: {
+        '@type': 'WebPageElement',
+        name: 'Current Conditions',
+        text: `Wave height: ${waveHeight}ft, Conditions: ${ratingLabel.value}`
+      }
+    }),
+    publisher: {
+      '@type': 'Organization',
+      name: 'Howzit',
+      url: 'https://howzit.surf'
+    }
+  }
+})
+
 useHead({
-  title: computed(() => spot.value ? `${spot.value.name} Surf Report - Howzit` : 'Loading...'),
+  title: computed(() => spot.value ? `${spot.value.name}, ${spot.value.state} Surf Report & Forecast - Howzit` : 'Loading...'),
   meta: [
     { name: 'description', content: metaDescription },
-    { property: 'og:title', content: computed(() => spot.value ? `${spot.value.name} Surf Report - Howzit` : '') },
+    { property: 'og:title', content: computed(() => spot.value ? `${spot.value.name}, ${spot.value.state} Surf Report & Forecast - Howzit` : '') },
     { property: 'og:description', content: metaDescription },
     { property: 'og:type', content: 'website' },
     { property: 'og:url', content: canonicalUrl },
     { name: 'twitter:card', content: 'summary' },
-    { name: 'twitter:title', content: computed(() => spot.value ? `${spot.value.name} Surf Report - Howzit` : '') },
+    { name: 'twitter:title', content: computed(() => spot.value ? `${spot.value.name}, ${spot.value.state} Surf Report & Forecast - Howzit` : '') },
     { name: 'twitter:description', content: metaDescription },
   ],
   link: [
     { rel: 'canonical', href: canonicalUrl }
+  ],
+  script: [
+    {
+      type: 'application/ld+json',
+      innerHTML: computed(() => jsonLd.value ? JSON.stringify(jsonLd.value) : '')
+    }
   ]
 })
 </script>

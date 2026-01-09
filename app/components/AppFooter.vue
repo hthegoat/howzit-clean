@@ -15,7 +15,7 @@
           <h3 class="font-bold mb-3">Company</h3>
           <ul class="space-y-2 text-sm">
             <li><NuxtLink to="/about" class="text-gray-600 hover:text-black">About</NuxtLink></li>
-            <li><a href="mailto:hello@howzit.surf" class="text-gray-600 hover:text-black">Contact</a></li>
+            <li><a href="mailto:howzitsurfing@gmail.com" class="text-gray-600 hover:text-black">Contact</a></li>
           </ul>
         </div>
       </div>

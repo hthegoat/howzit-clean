@@ -137,7 +137,7 @@
             </div>
           </div>
           <p class="text-gray-600 mt-4 text-sm">
-            Have a spot request? <a href="mailto:hello@howzit.surf" class="underline">Let me know</a>.
+            Have a spot request? <a href="mailto:howzitsurfing@gmail.com" class="underline">Let me know</a>.
           </p>
         </div>
       </section>
@@ -171,10 +171,10 @@
           </p>
           <div class="flex flex-col sm:flex-row gap-4">
             <a 
-              href="mailto:hello@howzit.surf" 
+              href="mailto:howzitsurfing@gmail.com" 
               class="inline-flex items-center justify-center gap-2 bg-black text-white font-bold px-6 py-3 rounded-[6px] hover:bg-gray-800 transition-colors"
             >
-              <span>📧</span> hello@howzit.surf
+              <span>📧</span> howzitsurfing@gmail.com
             </a>
             <a 
               href="https://instagram.com/howzitsurf" 

@@ -117,7 +117,19 @@
 </template>
 
 <script setup>
+const siteUrl = 'https://howzit.surf'
+
 useHead({
-  title: 'Join the Waitlist - Howzit'
+  title: 'Join the Waitlist - Howzit',
+  meta: [
+    { name: 'description', content: 'Join the Howzit waitlist for early access to East Coast surf forecasts. Free forever for early users. Become a founding member for lifetime premium access.' },
+    { property: 'og:title', content: 'Join the Waitlist - Howzit' },
+    { property: 'og:description', content: 'Join the Howzit waitlist for early access to East Coast surf forecasts. Free forever for early users.' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:url', content: `${siteUrl}/waitlist` },
+  ],
+  link: [
+    { rel: 'canonical', href: `${siteUrl}/waitlist` }
+  ]
 })
 </script>

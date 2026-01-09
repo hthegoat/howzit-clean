@@ -128,7 +128,22 @@
 </template>
 
 <script setup>
+const siteUrl = 'https://howzit.surf'
+
 useHead({
-  title: 'Howzit - Surf Forecasts That Don\'t Suck'
+  title: 'Howzit - East Coast Surf Forecasts That Don\'t Suck',
+  meta: [
+    { name: 'description', content: 'Real-time surf reports for 75+ East Coast spots from Maine to Florida. No ads, no bloat—just wave heights, tides, wind, and AI-powered forecasts.' },
+    { property: 'og:title', content: 'Howzit - East Coast Surf Forecasts That Don\'t Suck' },
+    { property: 'og:description', content: 'Real-time surf reports for 75+ East Coast spots. No ads, no bloat—just the data you need to score waves.' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:url', content: siteUrl },
+    { name: 'twitter:card', content: 'summary' },
+    { name: 'twitter:title', content: 'Howzit - East Coast Surf Forecasts That Don\'t Suck' },
+    { name: 'twitter:description', content: 'Real-time surf reports for 75+ East Coast spots. No ads, no bloat—just the data you need to score waves.' },
+  ],
+  link: [
+    { rel: 'canonical', href: siteUrl }
+  ]
 })
 </script>

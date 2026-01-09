@@ -2,7 +2,7 @@
   <div class="bg-white border-2 border-black rounded-lg overflow-hidden">
     <!-- Header -->
     <div class="flex justify-between items-center px-4 py-3 border-b-2 border-black">
-      <h3 class="font-black uppercase">Surf Graph</h3>
+      <h2 class="font-black uppercase">Surf Graph</h2>
       <div class="flex border-2 border-black rounded overflow-hidden text-sm">
         <button 
           @click="mode = 'surf'; render()" 

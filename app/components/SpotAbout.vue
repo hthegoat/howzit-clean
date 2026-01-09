@@ -11,7 +11,7 @@
     
     <!-- Description -->
     <div class="p-4 sm:p-6">
-      <h3 class="text-card-title mb-3">About {{ spot.name }}</h3>
+      <h2 class="text-card-title mb-3">About {{ spot.name }}</h2>
       <p v-if="spot.description" class="text-body text-gray-600 mb-4">
         {{ spot.description }}
       </p>

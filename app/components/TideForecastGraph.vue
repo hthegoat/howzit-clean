@@ -2,7 +2,7 @@
   <div class="bg-white border-2 border-black rounded-lg overflow-hidden">
     <!-- Header -->
     <div class="flex justify-between items-center px-4 py-3 border-b-2 border-black">
-      <h3 class="font-black uppercase">Tide Forecast</h3>
+      <h2 class="font-black uppercase">Tide Forecast</h2>
     </div>
 
     <!-- Chart -->
