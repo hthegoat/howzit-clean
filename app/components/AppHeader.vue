@@ -2,7 +2,7 @@
   <div>
     <!-- Announcement Bar -->
     <div class="bg-black text-white text-center py-2 sm:py-3 text-xs sm:text-sm font-medium tracking-wide">
-      BETA ACCESS NOW OPEN — FREE FOREVER FOR EARLY USERS
+      🏄 100 LIFETIME MEMBERSHIPS AVAILABLE — <NuxtLink to="/waitlist" class="underline hover:text-yellow-400">BECOME A FOUNDING MEMBER</NuxtLink>
     </div>
 
     <!-- Navigation -->
@@ -10,8 +10,9 @@
       <div class="max-w-7xl mx-auto px-3 sm:px-6">
         <div class="flex justify-between items-center h-14 sm:h-16">
           <!-- Logo -->
-          <NuxtLink to="/" class="text-xl sm:text-2xl font-black">
-            howzit
+          <NuxtLink to="/" class="flex items-baseline gap-2">
+            <span class="text-xl sm:text-2xl font-black">howzit</span>
+            <span class="hidden sm:inline text-xs text-gray-500 font-medium">your second opinion</span>
           </NuxtLink>
           
           <!-- Desktop Nav -->
@@ -81,8 +82,8 @@ import { ref } from 'vue'
 const mobileMenuOpen = ref(false)
 
 const navLinks = [
-  { name: 'How it Works', href: '/#how-it-works' },
-  { name: 'Features', href: '/#features' },
-  { name: 'Spots', href: '/spots' }
+  { name: 'Spots', href: '/spots' },
+  { name: 'How We Forecast', href: '/how-we-rate' },
+  { name: 'About', href: '/about' }
 ]
 </script>

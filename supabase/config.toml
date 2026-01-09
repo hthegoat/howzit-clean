@@ -1,13 +1,12 @@
-[functions.ingest-data]
+[functions.ingest-openmeteo]
 enabled = true
 verify_jwt = true
-import_map = "./functions/ingest-data/deno.json"
-entrypoint = "./functions/ingest-data/index.ts"
+entrypoint = "./functions/ingest-openmeteo/index.ts"
 
-[functions.ingest-surfline]
+[functions.ingest-tides]
 enabled = true
 verify_jwt = true
-entrypoint = "./functions/ingest-surfline/index.ts"
+entrypoint = "./functions/ingest-tides/index.ts"
 
 [functions.generate-spot-summary]
 enabled = true
@@ -16,5 +15,5 @@ entrypoint = "./functions/generate-spot-summary/index.ts"
 
 [functions.generate-all-summaries]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 entrypoint = "./functions/generate-all-summaries/index.ts"

@@ -67,8 +67,8 @@
           
           <BrutalCard class="p-6">
             <div class="text-4xl mb-4">🌊</div>
-            <h3 class="text-xl font-bold mb-2">100+ Spots</h3>
-            <p class="text-gray-600">NJ, NY, and NC covered. More spots coming soon. Request yours and we'll add it.</p>
+            <h3 class="text-xl font-bold mb-2">75+ Spots</h3>
+            <p class="text-gray-600">Full East Coast coverage from Maine to Florida. Request yours and we'll add it.</p>
           </BrutalCard>
         </div>
       </div>

@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -34,12 +39,13 @@ const formatForecastData = (spot: any, forecasts: any[], tides: any[], waterTemp
         const dateKey = date.toDateString()
         if (!byDay[dateKey]) byDay[dateKey] = { date, forecasts: [] }
         const hour = date.getHours()
-        const windMph = f.wind_speed ? Math.round(f.wind_speed * 1.151) : null
+        // Convert meters to feet, km/h to mph
+        const waveHeightFt = f.wave_height ? Math.round(f.wave_height * 3.281) : null
+        const windMph = f.wind_speed ? Math.round(f.wind_speed * 0.621) : null
         byDay[dateKey].forecasts.push({
             period: hour < 12 ? 'AM' : 'PM',
-            waveMin: f.wave_min,
-            waveMax: f.wave_max,
-            swellPeriod: f.swell_period ? Math.round(f.swell_period) : null,
+            waveHeight: waveHeightFt,
+            wavePeriod: f.wave_period ? Math.round(f.wave_period) : null,
             windSpeed: windMph,
             windDirCompass: degreesToCompass(f.wind_direction),
             windQuality: getWindQuality(f.wind_direction, spot.orientation)
@@ -75,8 +81,8 @@ const formatForecastData = (spot: any, forecasts: any[], tides: any[], waterTemp
         }
         const am = day.forecasts.find((f: any) => f.period === 'AM')
         const pm = day.forecasts.find((f: any) => f.period === 'PM')
-        if (am) output += `  AM: ${am.waveMin}-${am.waveMax}ft, ${am.swellPeriod}s, ${am.windSpeed}mph ${am.windDirCompass} (${am.windQuality})\n`
-        if (pm) output += `  PM: ${pm.waveMin}-${pm.waveMax}ft, ${pm.swellPeriod}s, ${pm.windSpeed}mph ${pm.windDirCompass} (${pm.windQuality})\n`
+        if (am) output += `  AM: ${am.waveHeight}ft, ${am.wavePeriod}s, ${am.windSpeed}mph ${am.windDirCompass} (${am.windQuality})\n`
+        if (pm) output += `  PM: ${pm.waveHeight}ft, ${pm.wavePeriod}s, ${pm.windSpeed}mph ${pm.windDirCompass} (${pm.windQuality})\n`
         output += `\n`
     })
     return output
@@ -112,21 +118,32 @@ const generateSummary = async (forecastData: string): Promise<string> => {
 }
 
 serve(async (req) => {
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+        return new Response('ok', { headers: corsHeaders })
+    }
+
     try {
         const { spot_id } = await req.json()
-        if (!spot_id) return new Response(JSON.stringify({ error: 'spot_id required' }), { status: 400 })
+        if (!spot_id) return new Response(JSON.stringify({ error: 'spot_id required' }), { 
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
 
         const { data: spot } = await supabase.from('spots').select('*').eq('id', spot_id).single()
-        if (!spot) return new Response(JSON.stringify({ error: 'Spot not found' }), { status: 404 })
+        if (!spot) return new Response(JSON.stringify({ error: 'Spot not found' }), { 
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
 
         const now = new Date()
         const sixDaysOut = new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000)
 
-        const { data: forecasts } = await supabase.from('surfline_forecasts').select('*')
+        const { data: forecasts } = await supabase.from('forecasts').select('*')
             .eq('spot_id', spot_id).gte('timestamp', now.toISOString()).lte('timestamp', sixDaysOut.toISOString())
             .order('timestamp', { ascending: true })
 
-        const { data: tides } = await supabase.from('surfline_tides').select('*')
+        const { data: tides } = await supabase.from('tides').select('*')
             .eq('spot_id', spot_id).gte('timestamp', now.toISOString())
             .order('timestamp', { ascending: true }).limit(20)
 
@@ -143,14 +160,16 @@ serve(async (req) => {
         await supabase.from('spot_summaries').upsert({
             spot_id,
             summary,
-            forecast_date: new Date().toISOString().split('T')[0],
             generated_at: new Date().toISOString()
-        }, { onConflict: 'spot_id,forecast_date' })
+        }, { onConflict: 'spot_id' })
 
         return new Response(JSON.stringify({ spot: spot.name, summary }), {
-            headers: { 'Content-Type': 'application/json' }
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
     } catch (err) {
-        return new Response(JSON.stringify({ error: err instanceof Error ? err.message : 'Error' }), { status: 500 })
+        return new Response(JSON.stringify({ error: err instanceof Error ? err.message : 'Error' }), { 
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
     }
 })

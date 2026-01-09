@@ -12,13 +12,17 @@
       </div>
 
       <BrutalCard class="p-6 sm:p-8">
-        <form v-if="!submitted" @submit.prevent="handleSubmit" class="space-y-6">
+        <form action="https://formsubmit.co/howzitsurfing@gmail.com" method="POST" class="space-y-6">
+          <input type="hidden" name="_subject" value="New Waitlist Signup!">
+          <input type="hidden" name="_next" value="https://howzit.surf/spots">
+          <input type="hidden" name="_captcha" value="false">
+          
           <div>
             <label for="email" class="block text-sm font-bold uppercase mb-2">Email Address</label>
             <input 
               id="email"
-              v-model="email"
               type="email"
+              name="email"
               required
               placeholder="you@example.com"
               class="w-full px-4 py-3 border-2 border-black rounded-[6px] text-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
@@ -27,30 +31,15 @@
           
           <button 
             type="submit"
-            :disabled="loading"
-            class="w-full bg-yellow-400 text-black font-bold px-6 py-4 text-lg border-2 border-black rounded-[6px] sm:shadow-[4px_4px_0px_#000] sm:hover:shadow-[2px_2px_0px_#000] hover:translate-x-[2px] hover:translate-y-[2px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full bg-yellow-400 text-black font-bold px-6 py-4 text-lg border-2 border-black rounded-[6px] sm:shadow-[4px_4px_0px_#000] sm:hover:shadow-[2px_2px_0px_#000] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
           >
-            {{ loading ? 'JOINING...' : 'JOIN WAITLIST' }}
+            JOIN WAITLIST
           </button>
-          
-          <p v-if="error" class="text-red-500 text-sm text-center">{{ error }}</p>
           
           <p class="text-xs text-gray-500 text-center">
             No spam, ever. Unsubscribe anytime.
           </p>
         </form>
-
-        <div v-else class="text-center py-8">
-          <div class="text-5xl mb-4">🤙</div>
-          <h2 class="text-2xl font-bold mb-2">You're on the list!</h2>
-          <p class="text-gray-600 mb-6">We'll hit you up when there's something worth sharing.</p>
-          <NuxtLink 
-            to="/spots"
-            class="inline-block bg-white text-black font-bold px-6 py-3 border-2 border-black rounded-[6px] shadow-[2px_2px_0px_#000] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
-          >
-            CHECK THE FORECAST →
-          </NuxtLink>
-        </div>
       </BrutalCard>
 
       <!-- Teaser -->
@@ -63,6 +52,64 @@
           <span class="bg-white px-3 py-1 border-2 border-black rounded-full text-sm font-medium">Community Reports</span>
         </div>
       </div>
+
+      <!-- Founding Member Section -->
+      <div class="mt-10 pt-8 border-t-2 border-black">
+        <div class="text-center mb-8">
+          <p class="text-sm text-gray-500 uppercase font-bold mb-2">Limited Offer</p>
+          <h2 class="text-3xl sm:text-4xl font-black uppercase mb-3">Become a Founding Member</h2>
+          <p class="text-gray-600">Lock in lifetime premium access. Only 100 spots available.</p>
+        </div>
+
+        <BrutalCard class="p-6 sm:p-8 border-black border-4 relative mt-6 overflow-visible">
+          <div class="grid sm:grid-cols-2 gap-6">
+            <div>
+              <div class="flex items-baseline gap-2 mb-4">
+                <span class="text-4xl font-black">$250</span>
+                <span class="text-gray-500">one-time, lifetime</span>
+              </div>
+              
+              <ul class="space-y-2">
+                <li class="flex gap-2 text-sm">
+                  <span class="text-green-600">✓</span>
+                  <span><strong>Lifetime</strong> premium access</span>
+                </li>
+                <li class="flex gap-2 text-sm">
+                  <span class="text-green-600">✓</span>
+                  <span>All current & future features</span>
+                </li>
+                <li class="flex gap-2 text-sm">
+                  <span class="text-green-600">✓</span>
+                  <span>Push alerts & notifications</span>
+                </li>
+                <li class="flex gap-2 text-sm">
+                  <span class="text-green-600">✓</span>
+                  <span>Saved spots & session tracker</span>
+                </li>
+                <li class="flex gap-2 text-sm">
+                  <span class="text-green-600">✓</span>
+                  <span>Founding member badge</span>
+                </li>
+                <li class="flex gap-2 text-sm">
+                  <span class="text-green-600">✓</span>
+                  <span>Direct input on features</span>
+                </li>
+              </ul>
+            </div>
+            
+            <div class="flex flex-col justify-center">
+              <a 
+                href="https://buy.stripe.com/bJe7sN0o9czv8lB02LbAs00"
+                target="_blank"
+                class="block w-full bg-yellow-400 text-black font-bold px-6 py-4 text-lg text-center border-2 border-black rounded-[6px] sm:shadow-[4px_4px_0px_#000] sm:hover:shadow-[2px_2px_0px_#000] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
+              >
+                CLAIM YOUR SPOT
+              </a>
+              <p class="text-xs text-gray-500 text-center mt-3">Secure checkout via Stripe</p>
+            </div>
+          </div>
+        </BrutalCard>
+      </div>
     </main>
 
     <AppFooter />
@@ -70,44 +117,6 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-
-const supabase = useSupabaseClient()
-
-const email = ref('')
-const loading = ref(false)
-const submitted = ref(false)
-const error = ref('')
-
-const handleSubmit = async () => {
-  if (!email.value) return
-  
-  loading.value = true
-  error.value = ''
-  
-  try {
-    const { error: dbError } = await supabase
-      .from('waitlist')
-      .insert({ email: email.value.toLowerCase().trim() })
-    
-    if (dbError) {
-      if (dbError.code === '23505') {
-        // Unique constraint - already signed up
-        submitted.value = true
-      } else {
-        throw dbError
-      }
-    } else {
-      submitted.value = true
-    }
-  } catch (err) {
-    console.error('Waitlist error:', err)
-    error.value = 'Something went wrong. Please try again.'
-  } finally {
-    loading.value = false
-  }
-}
-
 useHead({
   title: 'Join the Waitlist - Howzit'
 })

@@ -35,9 +35,15 @@ const props = defineProps({
 })
 
 const todayTides = computed(() => {
-  const today = new Date().toDateString()
+  const today = new Date()
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
+  
   const filtered = props.tides
-    .filter(t => new Date(t.timestamp).toDateString() === today)
+    .filter(t => {
+      const tideDate = new Date(t.timestamp)
+      return tideDate >= todayStart && tideDate < todayEnd
+    })
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
   
   // Deduplicate: if two tides of same type are within 30 min, keep first one

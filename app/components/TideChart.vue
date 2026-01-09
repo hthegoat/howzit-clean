@@ -41,13 +41,21 @@ const getAllTidesSorted = (tides) => {
     .sort((a, b) => a.time - b.time)
 }
 
+// Check if a UTC timestamp falls on "today" in local time
+const isToday = (timestamp) => {
+  const date = new Date(timestamp)
+  const today = new Date()
+  return date.toLocaleDateString() === today.toLocaleDateString()
+}
+
 const generateTideCurve = (tides) => {
   const labels = []
   const data = []
   const timeLabels = []
   
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  // Use local midnight for today
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   
   // Use ALL tides for interpolation (not just today's)
   const allTides = getAllTidesSorted(tides)
@@ -62,15 +70,15 @@ const generateTideCurve = (tides) => {
     return { labels, data, timeLabels }
   }
 
-  // Generate points every 30 minutes for today only
-  for (let i = 0; i < 48; i++) {
-    const hour = i / 2
-    const minutes = (i % 2) * 30
+  // Generate points every 15 minutes for today only (96 points)
+  for (let i = 0; i < 96; i++) {
+    const hour = i / 4
+    const minutes = (i % 4) * 15
     const time = new Date(today)
     time.setHours(Math.floor(hour), minutes, 0, 0)
     
     // X-axis labels (show every 4 hours)
-    if (i % 8 === 0) {
+    if (i % 16 === 0) {
       labels.push(formatHour(Math.floor(hour)))
     } else {
       labels.push('')
@@ -108,9 +116,17 @@ const interpolateTideHeight = (timeMs, tides) => {
   if (!before && !after) return 3
   if (!before) return after.height
   if (!after) return before.height
+  
+  // If tides are same type (shouldn't happen but safety check)
+  if (before.type === after.type) {
+    return (before.height + after.height) / 2
+  }
 
   // Cosine interpolation between the two tides
-  const t = (timeMs - before.time) / (after.time - before.time)
+  const duration = after.time - before.time
+  if (duration <= 0) return before.height
+  
+  const t = (timeMs - before.time) / duration
   const cosT = (1 - Math.cos(t * Math.PI)) / 2
   
   return before.height + (after.height - before.height) * cosT
@@ -134,8 +150,9 @@ const createChart = () => {
 
   const minHeight = Math.min(...data)
   const maxHeight = Math.max(...data)
-  const yMin = Math.floor(minHeight - 0.5)
-  const yMax = Math.ceil(maxHeight + 0.5)
+  // Round to nice values, always show at least 0-6ft range
+  const yMin = Math.floor(Math.min(0, minHeight))
+  const yMax = Math.ceil(Math.max(6, maxHeight))
 
   chartInstance = new Chart(ctx, {
     type: 'line',
@@ -178,7 +195,12 @@ const createChart = () => {
               return timeLabelsRef[index] || ''
             },
             label: (ctx) => {
-              return `${ctx.raw.toFixed(1)} ft`
+              const val = ctx.raw
+              // Show negative values properly
+              if (val < 0) {
+                return `${val.toFixed(1)}ft`
+              }
+              return `${val.toFixed(1)}ft`
             }
           }
         }

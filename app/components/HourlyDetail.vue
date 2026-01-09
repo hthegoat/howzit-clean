@@ -39,8 +39,14 @@
             :key="hour.hour"
             class="flex flex-col items-center min-w-[40px] flex-shrink-0"
           >
-            <Windarrow :degrees="hour.windDirection" :speed="hour.windSpeed" :beach-orientation="beachOrientation" class="w-5 h-5" />
-            <span class="text-meta mt-1">{{ hour.windSpeed }}</span>
+            <Windarrow 
+              :degrees="hour.windDirection" 
+              :speed="hour.windSpeed" 
+              :gust="hour.windGust"
+              :beach-orientation="beachOrientation" 
+              class="w-5 h-5" 
+            />
+            <span class="text-meta mt-1">{{ hour.windSpeed }}<span class="text-[9px]">kts</span></span>
             <span class="text-meta">{{ formatHour(hour.hour) }}</span>
           </div>
         </div>
@@ -83,9 +89,12 @@ const renderChart = () => {
   
   // Calculate Howzit score for each hour and get color
   const colors = props.hourlyData.map(h => {
+    const waveHt = typeof h.waveHeight === 'string' ? parseFloat(h.waveHeight) : (h.waveHeight || 0)
+    const wavePd = typeof h.wavePeriod === 'string' ? parseFloat(h.wavePeriod) : h.wavePeriod
+    
     const score = calculateRating({
-      waveHeight: parseFloat(h.waveHeight) || 0,
-      wavePeriod: h.wavePeriod,
+      waveHeight: waveHt,
+      wavePeriod: wavePd,
       windSpeed: h.windSpeed,
       windDirection: h.windDirection,
       beachOrientation: props.beachOrientation
@@ -121,9 +130,12 @@ const renderChart = () => {
             title: (items) => {
               const idx = items[0].dataIndex
               const hour = props.hourlyData[idx]
+              const waveHt = typeof hour.waveHeight === 'string' ? parseFloat(hour.waveHeight) : (hour.waveHeight || 0)
+              const wavePd = typeof hour.wavePeriod === 'string' ? parseFloat(hour.wavePeriod) : hour.wavePeriod
+              
               const score = calculateRating({
-                waveHeight: parseFloat(hour.waveHeight) || 0,
-                wavePeriod: hour.wavePeriod,
+                waveHeight: waveHt,
+                wavePeriod: wavePd,
                 windSpeed: hour.windSpeed,
                 windDirection: hour.windDirection,
                 beachOrientation: props.beachOrientation

@@ -6,7 +6,18 @@ export default defineNuxtConfig({
     '@nuxtjs/tailwindcss',
     '@nuxtjs/google-fonts',
     '@nuxtjs/supabase',
+    '@nuxtjs/sitemap',
   ],
+
+  site: {
+    url: 'https://howzit.surf',
+  },
+
+  sitemap: {
+    sources: [
+      '/api/__sitemap__/urls'
+    ]
+  },
 
   css: ['@/assets/css/main.css'],
 
