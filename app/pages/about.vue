@@ -204,7 +204,7 @@
 </template>
 
 <script setup>
-const siteUrl = 'https://howzitsurf.com'
+const siteUrl = 'https://www.howzitsurf.com'
 
 useHead({
   title: 'About - Howzit',

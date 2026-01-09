@@ -173,7 +173,7 @@ const formatWind = (kmh) => {
   return `${Math.round(kmh * 0.621)}mph`
 }
 
-const siteUrl = 'https://howzitsurf.com'
+const siteUrl = 'https://www.howzitsurf.com'
 
 useHead({ 
   title: 'Surf Spots - Howzit',

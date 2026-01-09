@@ -549,7 +549,7 @@ onMounted(async () => {
 })
 
 // SEO
-const siteUrl = 'https://howzitsurf.com'
+const siteUrl = 'https://www.howzitsurf.com'
 
 const metaDescription = computed(() => {
   if (!spot.value) return ''
@@ -604,7 +604,7 @@ const jsonLd = computed(() => {
     publisher: {
       '@type': 'Organization',
       name: 'Howzit',
-      url: 'https://howzitsurf.com'
+      url: 'https://www.howzitsurf.com'
     }
   }
 })
