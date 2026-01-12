@@ -83,6 +83,7 @@ const mobileMenuOpen = ref(false)
 
 const navLinks = [
   { name: 'Spots', href: '/spots' },
+  { name: 'Blog', href: '/blog' },
   { name: 'How We Forecast', href: '/how-we-rate' },
   { name: 'About', href: '/about' }
 ]

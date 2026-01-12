@@ -168,8 +168,7 @@ const currentConditions = computed(() => {
     }
   }
 
-  // Use forecast data for display (Open-Meteo)
-  // Buoy data is used for rating calculation but not display
+  // Use blended forecast data when available, fallback to Open-Meteo
   const hasBuoyWaves = false // Disabled: buoy?.wave_height != null
   
   let waveHeightFt, period, swellDir
@@ -181,8 +180,9 @@ const currentConditions = computed(() => {
     period = buoy.swell_period || buoy.dominant_period || '--'
     swellDir = buoy.swell_direction ?? buoy.wave_direction ?? null
   } else if (f) {
-    // Fallback to Open-Meteo forecast
-    waveHeightFt = f.wave_height ? Math.round(f.wave_height * 3.281) : 0
+    // Use blended wave height if available, otherwise Open-Meteo
+    const height = f.blended_wave_height ?? f.wave_height
+    waveHeightFt = height ? Math.round(height * 3.281) : 0
     
     // Determine which period to show based on dominant component
     // Blend swell and wind wave periods weighted by their heights
@@ -268,10 +268,10 @@ const currentRatingScore = computed(() => {
     params.windWavePeriod = buoy.wind_wave_period
     params.windWaveDirection = buoy.wind_wave_direction
   } else if (f) {
-    // Use forecast wave data
-    params.waveHeight = f.wave_height
-    params.wavePeriod = f.wave_period
-    params.waveDirection = f.wave_direction
+    // Use blended wave data when available, otherwise Open-Meteo
+    params.waveHeight = f.blended_wave_height ?? f.wave_height
+    params.wavePeriod = f.blended_wave_period ?? f.wave_period
+    params.waveDirection = f.blended_wave_direction ?? f.wave_direction
     params.swellWaveHeight = f.swell_wave_height
     params.swellWavePeriod = f.swell_wave_period
     params.swellWaveDirection = f.swell_wave_direction
@@ -324,15 +324,18 @@ const displayForecast = computed(() => {
     // Skip today - it has its own section
     if (isToday) return null
     
-    // Get wave heights in feet (convert from meters)
-    const waveHeights = readings.map(r => r.wave_height ? r.wave_height * 3.281 : null).filter(v => v !== null)
+    // Get wave heights in feet (convert from meters) - prefer blended
+    const waveHeights = readings.map(r => {
+      const h = r.blended_wave_height ?? r.wave_height
+      return h ? h * 3.281 : null
+    }).filter(v => v !== null)
     const waveMin = waveHeights.length ? Math.min(...waveHeights) : 0
     const waveMax = waveHeights.length ? Math.max(...waveHeights) : 0
     
-    // Average all the swell components (keep in meters for algorithm)
-    const avgWaveHeight = avg(validNums(readings, 'wave_height'))
-    const avgWavePeriod = avg(validNums(readings, 'wave_period'))
-    const avgWaveDir = avg(validNums(readings, 'wave_direction'))
+    // Average all the swell components (keep in meters for algorithm) - prefer blended
+    const avgWaveHeight = avg(validNums(readings, 'blended_wave_height')) || avg(validNums(readings, 'wave_height'))
+    const avgWavePeriod = avg(validNums(readings, 'blended_wave_period')) || avg(validNums(readings, 'wave_period'))
+    const avgWaveDir = avg(validNums(readings, 'blended_wave_direction')) || avg(validNums(readings, 'wave_direction'))
     const avgSwellHeight = avg(validNums(readings, 'swell_wave_height'))
     const avgSwellPeriod = avg(validNums(readings, 'swell_wave_period'))
     const avgSwellDir = avg(validNums(readings, 'swell_wave_direction'))
@@ -555,7 +558,8 @@ const metaDescription = computed(() => {
   if (!spot.value) return ''
   const f = latestForecast.value
   if (f) {
-    const height = f.wave_height ? `${Math.round(f.wave_height * 3.281)}ft` : ''
+    const h = f.blended_wave_height ?? f.wave_height
+    const height = h ? `${Math.round(h * 3.281)}ft` : ''
     return `${spot.value.name} surf report: ${height} waves, ${ratingLabel.value} conditions. Live forecast, tides, and wind for ${spot.value.region}, ${spot.value.state}.`
   }
   return `${spot.value.name} surf report and forecast. Live wave heights, wind, tides, and conditions for ${spot.value.region}, ${spot.value.state}.`
@@ -570,7 +574,8 @@ const jsonLd = computed(() => {
   if (!spot.value) return null
   
   const f = latestForecast.value
-  const waveHeight = f?.wave_height ? Math.round(f.wave_height * 3.281) : null
+  const h = f?.blended_wave_height ?? f?.wave_height
+  const waveHeight = h ? Math.round(h * 3.281) : null
   
   return {
     '@context': 'https://schema.org',

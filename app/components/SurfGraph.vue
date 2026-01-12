@@ -1,22 +1,20 @@
 <template>
   <div class="bg-white border-2 border-black rounded-lg overflow-hidden">
     <!-- Header -->
-    <div class="flex justify-between items-center px-4 py-3 border-b-2 border-black">
+    <div class="flex flex-wrap justify-between items-center gap-2 px-4 py-3 border-b-2 border-black">
       <h2 class="font-black uppercase">Surf Graph</h2>
+      
+      <!-- Source Toggle -->
       <div class="flex border-2 border-black rounded overflow-hidden text-sm">
         <button 
-          @click="mode = 'surf'; render()" 
-          :class="mode === 'surf' ? 'bg-black text-white' : 'bg-white text-black'"
-          class="px-3 py-1 font-bold uppercase text-xs"
+          v-for="src in sources" 
+          :key="src.id"
+          @click="source = src.id; render()" 
+          :class="source === src.id ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-100'"
+          class="px-2 py-1 font-bold uppercase text-[10px] transition-colors"
+          :title="src.title"
         >
-          Surf
-        </button>
-        <button 
-          @click="mode = 'swell'; render()" 
-          :class="mode === 'swell' ? 'bg-black text-white' : 'bg-white text-black'"
-          class="px-3 py-1 font-bold uppercase text-xs"
-        >
-          Swell
+          {{ src.label }}
         </button>
       </div>
     </div>
@@ -26,7 +24,7 @@
       <div ref="chart" class="w-full" style="height: 150px;"></div>
 
       <!-- Legend -->
-      <div class="flex justify-center gap-4 mt-3 text-xs font-medium">
+      <div class="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-3 text-xs font-medium">
         <div class="flex items-center gap-1.5">
           <div class="w-3 h-3 bg-emerald-500 border border-black"></div>
           <span>Clean</span>
@@ -43,6 +41,11 @@
           <div class="w-3 h-3 bg-gray-300 border border-black"></div>
           <span>Flat</span>
         </div>
+        
+        <!-- Source indicator -->
+        <div v-if="source !== 'blend'" class="flex items-center gap-1.5 ml-2 pl-2 border-l border-gray-300">
+          <span class="text-gray-500">{{ currentSourceLabel }}</span>
+        </div>
       </div>
     </div>
 
@@ -54,13 +57,23 @@
         <span class="font-mono text-gray-600">{{ hovered.swell }}</span>
         <span class="font-mono text-gray-600">{{ hovered.wind }}</span>
         <span v-if="hovered.tide !== null" class="font-mono text-blue-600">{{ hovered.tide.toFixed(1) }}ft {{ hovered.tideState }}</span>
+        <span v-if="hovered.confidence && source === 'blend'" class="text-xs" :class="confidenceClass(hovered.confidence)">
+          {{ hovered.confidence === 'high' ? '✓ High confidence' : hovered.confidence === 'medium' ? '~ Medium' : '? Uncertain' }}
+        </span>
+      </div>
+      
+      <!-- Model comparison on hover -->
+      <div v-if="hovered.allModels && source === 'blend'" class="flex gap-4 mt-2 text-xs text-gray-500 font-mono">
+        <span v-if="hovered.allModels.ww3 !== null">WW3: {{ hovered.allModels.ww3 }}ft</span>
+        <span v-if="hovered.allModels.ecmwf !== null">ECMWF: {{ hovered.allModels.ecmwf }}ft</span>
+        <span v-if="hovered.allModels.openMeteo !== null">OM: {{ hovered.allModels.openMeteo }}ft</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch, provide } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import * as d3 from 'd3'
 
 const props = defineProps({
@@ -73,9 +86,27 @@ const emit = defineEmits(['hover', 'hoverEnd'])
 
 const { calculateRating } = useHowzitRating()
 
-const mode = ref('surf')
+const source = ref('blend')
 const chart = ref(null)
 const hovered = ref(null)
+
+const sources = [
+  { id: 'blend', label: 'Hwzt', title: 'Howzit blend (recommended)' },
+  { id: 'ww3', label: 'WW3', title: 'WaveWatch III (NOAA)' },
+  { id: 'ecmwf', label: 'ECMWF', title: 'ECMWF WAM (European)' },
+  { id: 'om', label: 'OM', title: 'Open-Meteo' },
+]
+
+const currentSourceLabel = computed(() => {
+  const s = sources.find(s => s.id === source.value)
+  return s?.title || ''
+})
+
+const confidenceClass = (conf) => {
+  if (conf === 'high') return 'text-emerald-600'
+  if (conf === 'medium') return 'text-amber-600'
+  return 'text-red-500'
+}
 
 // Tide interpolation
 const getTideHeight = (timeMs) => {
@@ -113,11 +144,41 @@ const getTideState = (timeMs) => {
     .map(t => ({ ...t, time: new Date(t.timestamp).getTime() }))
     .sort((a, b) => a.time - b.time)
   
-  // Find next tide after this time
   const nextTide = sortedTides.find(t => t.time > timeMs)
   if (!nextTide) return null
   
   return nextTide.type === 'HIGH' ? 'Rising' : 'Falling'
+}
+
+// Get wave height based on selected source
+const getWaveHeight = (f) => {
+  switch (source.value) {
+    case 'ww3': return f.ww3_wave_height
+    case 'ecmwf': return f.ecmwf_wave_height
+    case 'om': return f.wave_height
+    case 'blend':
+    default: return f.blended_wave_height ?? f.wave_height
+  }
+}
+
+const getWavePeriod = (f) => {
+  switch (source.value) {
+    case 'ww3': return f.ww3_wave_period
+    case 'ecmwf': return f.ecmwf_wave_period
+    case 'om': return f.wave_period
+    case 'blend':
+    default: return f.blended_wave_period ?? f.wave_period
+  }
+}
+
+const getWaveDirection = (f) => {
+  switch (source.value) {
+    case 'ww3': return f.ww3_wave_direction
+    case 'ecmwf': return f.ecmwf_wave_direction
+    case 'om': return f.wave_direction
+    case 'blend':
+    default: return f.blended_wave_direction ?? f.wave_direction
+  }
 }
 
 const data = computed(() => {
@@ -126,10 +187,14 @@ const data = computed(() => {
     const toFt = m => m ? +(m * 3.281).toFixed(1) : 0
     const toMph = k => k ? Math.round(k * 0.621) : 0
     
+    const waveHeight = getWaveHeight(f)
+    const wavePeriod = getWavePeriod(f)
+    const waveDirection = getWaveDirection(f)
+    
     const rating = calculateRating({
-      waveHeight: f.wave_height,
-      wavePeriod: f.wave_period,
-      waveDirection: f.wave_direction,
+      waveHeight,
+      wavePeriod,
+      waveDirection,
       swellWaveHeight: f.swell_wave_height,
       swellWavePeriod: f.swell_wave_period,
       swellWaveDirection: f.swell_wave_direction,
@@ -157,35 +222,40 @@ const data = computed(() => {
       hour: date.getHours(),
       day: date.toLocaleDateString('en-US', { weekday: 'short' }),
       dayNum: date.getDate(),
-      height: toFt(f.wave_height),
+      height: toFt(waveHeight),
       swell: toFt(f.swell_wave_height),
       period: Math.round(f.swell_wave_period) || 0,
       swellDir: dir(f.swell_wave_direction),
       windSpd: toMph(f.wind_speed),
       windDir: dir(f.wind_direction),
-      rating
+      rating,
+      confidence: f.blend_confidence,
+      // Store all model values for comparison
+      allModels: {
+        ww3: f.ww3_wave_height ? toFt(f.ww3_wave_height) : null,
+        ecmwf: f.ecmwf_wave_height ? toFt(f.ecmwf_wave_height) : null,
+        openMeteo: f.wave_height ? toFt(f.wave_height) : null
+      }
     }
   })
 })
 
 const color = r => {
-  if (r >= 55) return '#10b981'  // green - Clean
-  if (r >= 35) return '#3b82f6'  // blue - Fair
-  if (r >= 10) return '#fb7185'  // pink - Choppy/Poor
-  return '#d1d5db'               // gray - Flat
+  if (r >= 55) return '#10b981'
+  if (r >= 35) return '#3b82f6'
+  if (r >= 10) return '#fb7185'
+  return '#d1d5db'
 }
 
-// Get display height - scale down based on rating
 const getDisplayHeight = (d) => {
-  const baseHeight = mode.value === 'swell' ? d.swell : d.height
+  const baseHeight = d.height
   
-  // Scale height by rating - poor conditions = smaller visual
-  if (d.rating < 10) return 0.2                           // Flat - tiny
-  if (d.rating < 20) return Math.max(0.3, baseHeight * 0.25)  // Very poor
-  if (d.rating < 30) return Math.max(0.5, baseHeight * 0.5)   // Poor
-  if (d.rating < 40) return Math.max(0.8, baseHeight * 0.7)   // Fair-
-  if (d.rating < 50) return baseHeight * 0.85                  // Fair
-  return baseHeight                                            // Good+
+  if (d.rating < 10) return 0.2
+  if (d.rating < 20) return Math.max(0.3, baseHeight * 0.25)
+  if (d.rating < 30) return Math.max(0.5, baseHeight * 0.5)
+  if (d.rating < 40) return Math.max(0.8, baseHeight * 0.7)
+  if (d.rating < 50) return baseHeight * 0.85
+  return baseHeight
 }
 
 const render = () => {
@@ -206,17 +276,15 @@ const render = () => {
   const g = svg.append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`)
   
-  const vals = data.value.map(d => getDisplayHeight(d))
-  const maxY = 15  // Fixed 15ft max
+  const maxY = 15
   
   const x = d3.scaleLinear().domain([0, data.value.length - 1]).range([0, W])
   const y = d3.scaleLinear().domain([0, maxY]).range([H, 0])
   
-  // Find "now" index
   const now = Date.now()
   let nowIndex = data.value.findIndex(d => d.date.getTime() > now)
   if (nowIndex === -1) nowIndex = data.value.length
-  if (nowIndex === 0) nowIndex = 0.5 // If first point is in future, put line at start
+  if (nowIndex === 0) nowIndex = 0.5
   
   // Grid
   g.append('g')
@@ -239,12 +307,11 @@ const render = () => {
     .attr('fill', '#999')
     .text(d => d + 'ft')
   
-  // Day markers - check width to avoid overlap
+  // Day markers
   const days = data.value.filter((d, i) => i === 0 || d.hour === 0)
   const isMobile = W < 400
   
   days.forEach((d, idx) => {
-    // Skip first label if it's not midnight (day already started)
     const isFirstPartialDay = idx === 0 && d.hour !== 0
     
     if (d.i > 0) {
@@ -255,10 +322,8 @@ const render = () => {
         .attr('stroke-width', 1)
     }
     
-    // Skip label for partial first day
     if (isFirstPartialDay) return
     
-    // On mobile, only show just the day number
     const label = isMobile ? d.day.charAt(0) + d.dayNum : `${d.day} ${d.dayNum}`
     
     g.append('text')
@@ -270,13 +335,11 @@ const render = () => {
       .text(label)
   })
   
-  // Draw segments between each pair of points
+  // Draw segments
   for (let i = 0; i < data.value.length - 1; i++) {
     const d0 = data.value[i]
     const d1 = data.value[i + 1]
     const avgRating = (d0.rating + d1.rating) / 2
-    
-    // Check if this segment is in the past
     const isPast = i < nowIndex - 1
     
     const segmentArea = d3.area()
@@ -288,7 +351,7 @@ const render = () => {
     g.append('path')
       .datum([d0, d1])
       .attr('d', segmentArea)
-      .attr('fill', isPast ? '#d1d5db' : color(avgRating))  // Gray out past
+      .attr('fill', isPast ? '#d1d5db' : color(avgRating))
       .attr('opacity', isPast ? 0.5 : 0.85)
   }
   
@@ -305,9 +368,9 @@ const render = () => {
     .attr('stroke', '#000')
     .attr('stroke-width', 1.5)
   
-  // "NOW" indicator line
+  // NOW indicator
   if (nowIndex > 0 && nowIndex < data.value.length) {
-    const nowX = x(nowIndex - 0.5)  // Between previous and next hour
+    const nowX = x(nowIndex - 0.5)
     
     g.append('line')
       .attr('x1', nowX).attr('x2', nowX)
@@ -316,7 +379,6 @@ const render = () => {
       .attr('stroke-width', 2)
       .attr('stroke-dasharray', '4,4')
     
-    // Now dot/label at top
     g.append('circle')
       .attr('cx', nowX)
       .attr('cy', 0)
@@ -326,7 +388,7 @@ const render = () => {
       .attr('stroke-width', 2)
   }
   
-  // Hover line
+  // Hover elements
   const hoverLine = g.append('line')
     .attr('y1', 0).attr('y2', H)
     .attr('stroke', '#000')
@@ -361,14 +423,15 @@ const render = () => {
       
       hovered.value = {
         label: d.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric' }),
-        height: mode.value === 'swell' ? d.swell : d.height,
+        height: d.height,
         swell: `${d.swell}ft @ ${d.period}s ${d.swellDir}`,
         wind: `${d.windSpd}mph ${d.windDir}`,
         tide: getTideHeight(d.date.getTime()),
-        tideState: getTideState(d.date.getTime())
+        tideState: getTideState(d.date.getTime()),
+        confidence: d.confidence,
+        allModels: d.allModels
       }
       
-      // Emit hover event with timestamp for tide graph sync
       emit('hover', d.date.getTime())
     })
     .on('mouseleave', () => {
@@ -380,6 +443,7 @@ const render = () => {
 }
 
 watch(() => props.forecasts, () => nextTick(render), { deep: true })
+watch(source, () => nextTick(render))
 
 onMounted(() => {
   nextTick(render)

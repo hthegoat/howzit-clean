@@ -40,6 +40,15 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'Howzit - Surf Forecasts That Don\'t Suck',
+      script: [
+        {
+          src: 'https://www.googletagmanager.com/gtag/js?id=G-VKCEL7TEGB',
+          async: true
+        },
+        {
+          innerHTML: `window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('config', 'G-VKCEL7TEGB');`
+        }
+      ],
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },

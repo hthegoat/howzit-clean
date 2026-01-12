@@ -158,12 +158,60 @@
       <section class="mb-12">
         <h2 class="text-2xl font-black uppercase mb-6 pb-2 border-b-2 border-black">Our Data Sources</h2>
         
-        <div class="grid sm:grid-cols-2 gap-4">
-          <div class="bg-white border-2 border-black rounded-lg p-5">
-            <h3 class="font-bold mb-2">Wave & Wind Forecasts</h3>
-            <p class="text-gray-600 text-sm">Open-Meteo Marine API — 7-day hourly forecasts updated every 6 hours</p>
+        <div class="bg-white border-2 border-black rounded-lg p-6 mb-6">
+          <h3 class="font-bold text-lg mb-3">Multi-Model Wave Forecasts</h3>
+          <p class="text-gray-600 text-sm mb-4">
+            We blend three independent wave models to give you more accurate forecasts. Each model has strengths—by combining them, we reduce the chance of any single model leading you astray.
+          </p>
+          
+          <div class="grid sm:grid-cols-3 gap-4">
+            <div class="bg-gray-50 p-4 rounded-lg">
+              <h4 class="font-bold text-sm mb-1">WaveWatch III</h4>
+              <p class="text-xs text-gray-500 mb-2">NOAA / NCEP</p>
+              <p class="text-gray-600 text-xs">US government model. Great for detecting incoming swells and short-period wind events. Uses GFS wind data.</p>
+            </div>
+            
+            <div class="bg-gray-50 p-4 rounded-lg">
+              <h4 class="font-bold text-sm mb-1">ECMWF WAM</h4>
+              <p class="text-xs text-gray-500 mb-2">European Centre</p>
+              <p class="text-gray-600 text-xs">The European gold standard. Excellent medium-range accuracy (3-7 days). Often considered the world's best weather model.</p>
+            </div>
+            
+            <div class="bg-gray-50 p-4 rounded-lg">
+              <h4 class="font-bold text-sm mb-1">Open-Meteo</h4>
+              <p class="text-xs text-gray-500 mb-2">Multi-model ensemble</p>
+              <p class="text-gray-600 text-xs">Aggregates multiple sources with detailed swell component separation. Good baseline data.</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-white border-2 border-black rounded-lg p-6 mb-6">
+          <h3 class="font-bold text-lg mb-3">How We Blend</h3>
+          <p class="text-gray-600 text-sm mb-4">
+            Our algorithm compares all three models for each forecast hour and calculates a confidence level:
+          </p>
+          
+          <div class="space-y-3">
+            <div class="flex items-center gap-3">
+              <span class="text-emerald-600 font-bold">✓ High Confidence</span>
+              <span class="text-gray-600 text-sm">All models agree within 0.5ft — we average them</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-amber-600 font-bold">~ Medium Confidence</span>
+              <span class="text-gray-600 text-sm">Two models agree, one differs — we weight toward the agreeing pair</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-red-500 font-bold">? Low Confidence</span>
+              <span class="text-gray-600 text-sm">Models diverge significantly — we use the median and flag uncertainty</span>
+            </div>
           </div>
           
+          <p class="text-gray-500 text-xs mt-4">
+            You can toggle between individual models in the Surf Graph to see how they differ.
+          </p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-4">
           <div class="bg-white border-2 border-black rounded-lg p-5">
             <h3 class="font-bold mb-2">Tide Data</h3>
             <p class="text-gray-600 text-sm">NOAA CO-OPS — Official tide predictions for nearest stations</p>
@@ -176,7 +224,12 @@
           
           <div class="bg-white border-2 border-black rounded-lg p-5">
             <h3 class="font-bold mb-2">AI Summaries</h3>
-            <p class="text-gray-600 text-sm">Claude by Anthropic — Generates plain-English forecast summaries</p>
+            <p class="text-gray-600 text-sm">Claude by Anthropic — Generates plain-English forecast summaries from blended data</p>
+          </div>
+          
+          <div class="bg-white border-2 border-black rounded-lg p-5">
+            <h3 class="font-bold mb-2">Buoy Data</h3>
+            <p class="text-gray-600 text-sm">NDBC buoys — Real-time wave observations where available</p>
           </div>
         </div>
       </section>

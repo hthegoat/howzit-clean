@@ -12,50 +12,130 @@ interface Spot {
   longitude: number;
 }
 
+// ============================================
+// BLENDING ALGORITHM v2
+// ============================================
+function blendForecasts(ww3: number | null, openMeteo: number | null, ecmwf: number | null): {
+  value: number | null;
+  confidence: 'high' | 'medium' | 'low' | 'none';
+  spread: number | null;
+  method: string;
+} {
+  const values = [ww3, openMeteo, ecmwf].filter((v): v is number => v != null && !isNaN(v));
+  
+  if (values.length === 0) return { value: null, confidence: 'none', spread: null, method: 'no data' };
+  if (values.length === 1) return { value: values[0], confidence: 'low', spread: null, method: 'single source' };
+  
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const spread = max - min;
+  
+  if (values.length === 2) {
+    return {
+      value: (values[0] + values[1]) / 2,
+      confidence: spread < 0.5 ? 'high' : spread < 1 ? 'medium' : 'low',
+      spread,
+      method: 'two source average'
+    };
+  }
+  
+  // 3 sources
+  const sorted = [...values].sort((a, b) => a - b);
+  const median = sorted[1];
+  
+  const diffWW3_OM = ww3 != null && openMeteo != null ? Math.abs(ww3 - openMeteo) : Infinity;
+  const diffWW3_EC = ww3 != null && ecmwf != null ? Math.abs(ww3 - ecmwf) : Infinity;
+  const diffOM_EC = openMeteo != null && ecmwf != null ? Math.abs(openMeteo - ecmwf) : Infinity;
+  
+  // HIGH confidence: all 3 within 0.5ft (0.15m)
+  if (spread < 0.15) {
+    return {
+      value: (ww3! + openMeteo! + ecmwf!) / 3,
+      confidence: 'high',
+      spread,
+      method: 'average (all agree)'
+    };
+  }
+  
+  const agreementThreshold = 0.15; // ~0.5ft in meters
+  const outlierThreshold = 0.3;    // ~1ft in meters
+  
+  // Check for 2-model agreement
+  if (diffOM_EC < agreementThreshold && diffWW3_OM > outlierThreshold && diffWW3_EC > outlierThreshold) {
+    const agreedValue = (openMeteo! + ecmwf!) / 2;
+    return {
+      value: agreedValue * 0.75 + ww3! * 0.25,
+      confidence: 'medium',
+      spread,
+      method: 'weighted (OM+ECMWF agree)'
+    };
+  }
+  
+  if (diffWW3_EC < agreementThreshold && diffWW3_OM > outlierThreshold && diffOM_EC > outlierThreshold) {
+    const agreedValue = (ww3! + ecmwf!) / 2;
+    return {
+      value: agreedValue * 0.75 + openMeteo! * 0.25,
+      confidence: 'medium',
+      spread,
+      method: 'weighted (WW3+ECMWF agree)'
+    };
+  }
+  
+  if (diffWW3_OM < agreementThreshold && diffWW3_EC > outlierThreshold && diffOM_EC > outlierThreshold) {
+    const agreedValue = (ww3! + openMeteo!) / 2;
+    return {
+      value: agreedValue * 0.75 + ecmwf! * 0.25,
+      confidence: 'medium',
+      spread,
+      method: 'weighted (WW3+OM agree)'
+    };
+  }
+  
+  // Medium if spread is moderate (< 0.45m / ~1.5ft)
+  if (spread < 0.45) {
+    return {
+      value: median,
+      confidence: 'medium',
+      spread,
+      method: 'median (moderate spread)'
+    };
+  }
+  
+  // LOW confidence: spread > 1.5ft
+  return {
+    value: median,
+    confidence: 'low',
+    spread,
+    method: 'median (high uncertainty)'
+  };
+}
+
+// ============================================
+// DATA FETCHERS
+// ============================================
+
 async function fetchOpenMeteoMarine(lat: number, lng: number) {
-  // Fetch marine data with ALL swell components
   const marineParams = new URLSearchParams({
     latitude: lat.toString(),
     longitude: lng.toString(),
     hourly: [
-      // Combined totals
-      "wave_height",
-      "wave_period",
-      "wave_direction",
-      // Wind waves (local chop)
-      "wind_wave_height",
-      "wind_wave_period",
-      "wind_wave_direction",
-      "wind_wave_peak_period",
-      // Primary swell (ground swell)
-      "swell_wave_height",
-      "swell_wave_period",
-      "swell_wave_direction",
-      "swell_wave_peak_period",
-      // Secondary swell
-      "secondary_swell_wave_height",
-      "secondary_swell_wave_period",
-      "secondary_swell_wave_direction",
-      // Tertiary swell (GFS only)
-      "tertiary_swell_wave_height",
-      "tertiary_swell_wave_period",
-      "tertiary_swell_wave_direction",
-      // Ocean conditions
-      "sea_surface_temperature",
-      "ocean_current_velocity",
-      "ocean_current_direction"
+      "wave_height", "wave_period", "wave_direction",
+      "wind_wave_height", "wind_wave_period", "wind_wave_direction", "wind_wave_peak_period",
+      "swell_wave_height", "swell_wave_period", "swell_wave_direction", "swell_wave_peak_period",
+      "secondary_swell_wave_height", "secondary_swell_wave_period", "secondary_swell_wave_direction",
+      "tertiary_swell_wave_height", "tertiary_swell_wave_period", "tertiary_swell_wave_direction",
+      "sea_surface_temperature", "ocean_current_velocity", "ocean_current_direction"
     ].join(","),
     forecast_days: "7",
-    timezone: "America/New_York"
+    timezone: "UTC"
   });
 
-  // Fetch weather data (wind)
   const weatherParams = new URLSearchParams({
     latitude: lat.toString(),
     longitude: lng.toString(),
     hourly: "wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,cloud_cover",
     forecast_days: "7",
-    timezone: "America/New_York"
+    timezone: "UTC"
   });
 
   const [marineRes, weatherRes] = await Promise.all([
@@ -66,11 +146,74 @@ async function fetchOpenMeteoMarine(lat: number, lng: number) {
   if (!marineRes.ok) throw new Error(`Marine API error: ${marineRes.status}`);
   if (!weatherRes.ok) throw new Error(`Weather API error: ${weatherRes.status}`);
   
-  const marine = await marineRes.json();
-  const weather = await weatherRes.json();
-  
-  return { marine, weather };
+  return {
+    marine: await marineRes.json(),
+    weather: await weatherRes.json()
+  };
 }
+
+async function fetchECMWF(lat: number, lng: number): Promise<{ data: any; error: string | null }> {
+  try {
+    const params = new URLSearchParams({
+      latitude: lat.toString(),
+      longitude: lng.toString(),
+      hourly: "wave_height,wave_period,wave_direction",
+      models: "ecmwf_wam025",
+      timezone: "UTC"
+    });
+
+    const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?${params}`);
+    if (!res.ok) return { data: null, error: `ECMWF HTTP ${res.status}` };
+    return { data: await res.json(), error: null };
+  } catch (e) {
+    return { data: null, error: `ECMWF: ${e instanceof Error ? e.message : 'fetch failed'}` };
+  }
+}
+
+async function fetchWaveWatchIII(lat: number, lng: number): Promise<{ data: any; error: string | null }> {
+  try {
+    // Convert to ERDDAP coordinates (0-360 longitude)
+    const erddapLon = lng < 0 ? 360 + lng : lng;
+    const gridLat = Math.round(lat * 2) / 2;
+    const gridLon = Math.round(erddapLon * 2) / 2;
+    
+    const now = new Date();
+    const startTime = now.toISOString();
+    
+    const dims = `[(${startTime}):1:(last)][(0.0):1:(0.0)][(${gridLat}):1:(${gridLat})][(${gridLon}):1:(${gridLon})]`;
+    
+    const url = `https://coastwatch.pfeg.noaa.gov/erddap/griddap/NWW3_Global_Best.json?` +
+      `Thgt${dims},Tper${dims},Tdir${dims}`;
+    
+    const res = await fetch(url);
+    if (!res.ok) return { data: null, error: `WW3 HTTP ${res.status}` };
+    
+    const data = await res.json();
+    
+    // Convert to hourly format matching Open-Meteo
+    const rows = data.table.rows;
+    return {
+      data: {
+        hourly: {
+          time: rows.map((r: any[]) => {
+            const timeVal = typeof r[0] === 'number' ? r[0] * 1000 : Date.parse(r[0]);
+            return new Date(timeVal).toISOString();
+          }),
+          wave_height: rows.map((r: any[]) => r[4]),
+          wave_period: rows.map((r: any[]) => r[5]),
+          wave_direction: rows.map((r: any[]) => r[6])
+        }
+      },
+      error: null
+    };
+  } catch (e) {
+    return { data: null, error: `WW3: ${e instanceof Error ? e.message : 'fetch failed'}` };
+  }
+}
+
+// ============================================
+// MAIN HANDLER
+// ============================================
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -82,7 +225,6 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get all spots with coordinates
     const { data: spots, error: spotsError } = await supabase
       .from("spots")
       .select("id, name, latitude, longitude")
@@ -96,81 +238,130 @@ Deno.serve(async (req) => {
       });
     }
 
-    const results = { processed: 0, forecasts_saved: 0, errors: [] as string[] };
+    const results = { 
+      processed: 0, 
+      forecasts_saved: 0, 
+      errors: [] as string[],
+      source_stats: { openmeteo: 0, ecmwf: 0, ww3: 0, ecmwf_errors: 0, ww3_errors: 0 }
+    };
 
     for (const spot of spots as Spot[]) {
       try {
-        const data = await fetchOpenMeteoMarine(spot.latitude, spot.longitude);
+        // Fetch all 3 sources in parallel
+        const [omData, ecmwfResult, ww3Result] = await Promise.all([
+          fetchOpenMeteoMarine(spot.latitude, spot.longitude),
+          fetchECMWF(spot.latitude, spot.longitude),
+          fetchWaveWatchIII(spot.latitude, spot.longitude)
+        ]);
         
-        if (!data.marine.hourly || !data.marine.hourly.time) {
-          results.errors.push(`${spot.name}: No hourly data returned`);
+        if (!omData.marine.hourly?.time) {
+          results.errors.push(`${spot.name}: No Open-Meteo data`);
           continue;
         }
-
-        const { 
-          time, 
-          wave_height, 
-          wave_period, 
-          wave_direction,
-          wind_wave_height,
-          wind_wave_period,
-          wind_wave_direction,
-          wind_wave_peak_period,
-          swell_wave_height, 
-          swell_wave_period, 
-          swell_wave_direction,
-          swell_wave_peak_period,
-          secondary_swell_wave_height,
-          secondary_swell_wave_period,
-          secondary_swell_wave_direction,
-          tertiary_swell_wave_height,
-          tertiary_swell_wave_period,
-          tertiary_swell_wave_direction,
-          sea_surface_temperature,
-          ocean_current_velocity,
-          ocean_current_direction
-        } = data.marine.hourly;
         
-        const { wind_speed_10m, wind_direction_10m, wind_gusts_10m, precipitation, cloud_cover } = data.weather.hourly;
+        results.source_stats.openmeteo++;
+        
+        // Track secondary source availability
+        if (ecmwfResult.error) {
+          results.source_stats.ecmwf_errors++;
+        } else {
+          results.source_stats.ecmwf++;
+        }
+        
+        if (ww3Result.error) {
+          results.source_stats.ww3_errors++;
+        } else {
+          results.source_stats.ww3++;
+        }
 
-        const forecasts = time.map((timestamp: string, i: number) => {
+        const om = omData.marine.hourly;
+        const weather = omData.weather.hourly;
+        const ec = ecmwfResult.data?.hourly;
+        const ww3 = ww3Result.data?.hourly;
+
+        const forecasts = om.time.map((timestamp: string, i: number) => {
+          const ts = new Date(timestamp);
+          
+          // Find matching WW3 and ECMWF data by timestamp
+          const ww3Idx = ww3?.time?.findIndex((t: string) => 
+            Math.abs(new Date(t).getTime() - ts.getTime()) < 30 * 60 * 1000
+          ) ?? -1;
+          const ecIdx = ec?.time?.findIndex((t: string) => 
+            Math.abs(new Date(t).getTime() - ts.getTime()) < 30 * 60 * 1000
+          ) ?? -1;
+          
+          const omHeight = om.wave_height?.[i] ?? null;
+          const ww3Height = ww3Idx >= 0 ? ww3.wave_height[ww3Idx] : null;
+          const ecHeight = ecIdx >= 0 ? ec.wave_height[ecIdx] : null;
+          
+          const omPeriod = om.wave_period?.[i] ?? null;
+          const ww3Period = ww3Idx >= 0 ? ww3.wave_period[ww3Idx] : null;
+          const ecPeriod = ecIdx >= 0 ? ec.wave_period[ecIdx] : null;
+          
+          const omDir = om.wave_direction?.[i] ?? null;
+          const ww3Dir = ww3Idx >= 0 ? ww3.wave_direction[ww3Idx] : null;
+          const ecDir = ecIdx >= 0 ? ec.wave_direction[ecIdx] : null;
+          
+          // Calculate blended values
+          const heightBlend = blendForecasts(ww3Height, omHeight, ecHeight);
+          const periodBlend = blendForecasts(ww3Period, omPeriod, ecPeriod);
+          
+          // For direction, use circular mean or just take from most confident height source
+          let blendedDir = omDir;
+          if (heightBlend.method.includes('WW3') && ww3Dir != null) {
+            blendedDir = ww3Dir;
+          } else if (heightBlend.method.includes('ECMWF') && ecDir != null) {
+            blendedDir = ecDir;
+          }
+
           return {
             spot_id: spot.id,
-            timestamp: new Date(timestamp).toISOString(),
-            // Combined totals (for headline display)
-            wave_height: wave_height?.[i] ?? null,
-            wave_period: wave_period?.[i] ?? null,
-            wave_direction: wave_direction?.[i] ?? null,
-            // Wind waves (local chop)
-            wind_wave_height: wind_wave_height?.[i] ?? null,
-            wind_wave_period: wind_wave_period?.[i] ?? null,
-            wind_wave_direction: wind_wave_direction?.[i] ?? null,
-            // Primary swell (ground swell)
-            swell_wave_height: swell_wave_height?.[i] ?? null,
-            swell_wave_period: swell_wave_period?.[i] ?? null,
-            swell_wave_direction: swell_wave_direction?.[i] ?? null,
-            // Secondary swell
-            secondary_swell_height: secondary_swell_wave_height?.[i] ?? null,
-            secondary_swell_period: secondary_swell_wave_period?.[i] ?? null,
-            secondary_swell_direction: secondary_swell_wave_direction?.[i] ?? null,
-            // Tertiary swell (GFS only)
-            tertiary_swell_height: tertiary_swell_wave_height?.[i] ?? null,
-            tertiary_swell_period: tertiary_swell_wave_period?.[i] ?? null,
-            tertiary_swell_direction: tertiary_swell_wave_direction?.[i] ?? null,
-            // Peak periods (more accurate than mean)
-            swell_peak_period: swell_wave_peak_period?.[i] ?? null,
-            wind_wave_peak_period: wind_wave_peak_period?.[i] ?? null,
-            // Ocean conditions
-            sea_surface_temp: sea_surface_temperature?.[i] ?? null,
-            ocean_current_velocity: ocean_current_velocity?.[i] ?? null,
-            ocean_current_direction: ocean_current_direction?.[i] ?? null,
-            // Wind
-            wind_speed: wind_speed_10m?.[i] ?? null,
-            wind_direction: wind_direction_10m?.[i] ?? null,
-            wind_gust: wind_gusts_10m?.[i] ?? null,
+            timestamp: ts.toISOString(),
+            
+            // Original Open-Meteo data (keep for compatibility)
+            wave_height: omHeight,
+            wave_period: omPeriod,
+            wave_direction: omDir,
+            wind_wave_height: om.wind_wave_height?.[i] ?? null,
+            wind_wave_period: om.wind_wave_period?.[i] ?? null,
+            wind_wave_direction: om.wind_wave_direction?.[i] ?? null,
+            swell_wave_height: om.swell_wave_height?.[i] ?? null,
+            swell_wave_period: om.swell_wave_period?.[i] ?? null,
+            swell_wave_direction: om.swell_wave_direction?.[i] ?? null,
+            secondary_swell_height: om.secondary_swell_wave_height?.[i] ?? null,
+            secondary_swell_period: om.secondary_swell_wave_period?.[i] ?? null,
+            secondary_swell_direction: om.secondary_swell_wave_direction?.[i] ?? null,
+            tertiary_swell_height: om.tertiary_swell_wave_height?.[i] ?? null,
+            tertiary_swell_period: om.tertiary_swell_wave_period?.[i] ?? null,
+            tertiary_swell_direction: om.tertiary_swell_wave_direction?.[i] ?? null,
+            swell_peak_period: om.swell_wave_peak_period?.[i] ?? null,
+            wind_wave_peak_period: om.wind_wave_peak_period?.[i] ?? null,
+            sea_surface_temp: om.sea_surface_temperature?.[i] ?? null,
+            ocean_current_velocity: om.ocean_current_velocity?.[i] ?? null,
+            ocean_current_direction: om.ocean_current_direction?.[i] ?? null,
+            
             // Weather
-            precipitation: precipitation?.[i] ?? null,
-            cloud_cover: cloud_cover?.[i] ?? null,
+            wind_speed: weather.wind_speed_10m?.[i] ?? null,
+            wind_direction: weather.wind_direction_10m?.[i] ?? null,
+            wind_gust: weather.wind_gusts_10m?.[i] ?? null,
+            precipitation: weather.precipitation?.[i] ?? null,
+            cloud_cover: weather.cloud_cover?.[i] ?? null,
+            
+            // NEW: Multi-source data
+            ww3_wave_height: ww3Height,
+            ww3_wave_period: ww3Period,
+            ww3_wave_direction: ww3Dir,
+            ecmwf_wave_height: ecHeight,
+            ecmwf_wave_period: ecPeriod,
+            ecmwf_wave_direction: ecDir,
+            
+            // NEW: Blended values
+            blended_wave_height: heightBlend.value,
+            blended_wave_period: periodBlend.value,
+            blended_wave_direction: blendedDir,
+            blend_confidence: heightBlend.confidence,
+            blend_spread: heightBlend.spread,
+            
             fetched_at: new Date().toISOString(),
           };
         });
@@ -189,15 +380,15 @@ Deno.serve(async (req) => {
 
         results.processed++;
         
-        // Rate limit: 100ms between spots
-        await new Promise(r => setTimeout(r, 100));
+        // Rate limit: 200ms between spots (more API calls now)
+        await new Promise(r => setTimeout(r, 200));
         
       } catch (e) {
         results.errors.push(`${spot.name}: ${e instanceof Error ? e.message : "Error"}`);
       }
     }
 
-    // Trigger summary generation after forecasts are updated
+    // Trigger summary generation
     try {
       await fetch(`${supabaseUrl}/functions/v1/generate-all-summaries`, {
         method: "POST",

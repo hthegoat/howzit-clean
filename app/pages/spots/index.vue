@@ -34,7 +34,7 @@
                   <p class="text-sm text-gray-500">{{ spot.region }}</p>
                 </div>
                 <div v-if="spot.forecast" class="text-right flex-shrink-0">
-                  <p class="text-xl sm:text-2xl font-black">{{ formatWaveHeight(spot.forecast.wave_height) }}</p>
+                  <p class="text-xl sm:text-2xl font-black">{{ formatWaveHeight(spot.forecast.blended_wave_height ?? spot.forecast.wave_height) }}</p>
                   <p class="text-xs text-gray-500">{{ getSpotLabel(spot) }}</p>
                 </div>
                 <div v-else class="text-right text-gray-400">
@@ -73,10 +73,10 @@ const getSpotScore = (spot) => {
   const f = spot.forecast
   
   return calculateRating({
-    // Combined values (meters - algorithm converts internally)
-    waveHeight: f.wave_height,
-    wavePeriod: f.wave_period,
-    waveDirection: f.wave_direction,
+    // Use blended values when available, fallback to Open-Meteo
+    waveHeight: f.blended_wave_height ?? f.wave_height,
+    wavePeriod: f.blended_wave_period ?? f.wave_period,
+    waveDirection: f.blended_wave_direction ?? f.wave_direction,
     // Swell components
     swellWaveHeight: f.swell_wave_height,
     swellWavePeriod: f.swell_wave_period,

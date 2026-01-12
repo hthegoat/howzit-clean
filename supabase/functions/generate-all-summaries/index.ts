@@ -41,15 +41,22 @@ const formatForecastData = (spot: any, forecasts: any[], tides: any[], waterTemp
         const dateKey = date.toDateString()
         if (!byDay[dateKey]) byDay[dateKey] = { date, forecasts: [] }
         const hour = date.getHours()
-        const waveHeightFt = f.wave_height ? Math.round(f.wave_height * 3.281) : null
+        
+        // Use blended wave height when available, fallback to Open-Meteo
+        const waveHeightM = f.blended_wave_height ?? f.wave_height
+        const wavePeriodS = f.blended_wave_period ?? f.wave_period
+        
+        const waveHeightFt = waveHeightM ? Math.round(waveHeightM * 3.281) : null
         const windMph = f.wind_speed ? Math.round(f.wind_speed * 0.621) : null
+        
         byDay[dateKey].forecasts.push({
             period: hour < 12 ? 'AM' : 'PM',
             waveHeight: waveHeightFt,
-            wavePeriod: f.wave_period ? Math.round(f.wave_period) : null,
+            wavePeriod: wavePeriodS ? Math.round(wavePeriodS) : null,
             windSpeed: windMph,
             windDirCompass: degreesToCompass(f.wind_direction),
-            windQuality: getWindQuality(f.wind_direction, spot.orientation)
+            windQuality: getWindQuality(f.wind_direction, spot.orientation),
+            confidence: f.blend_confidence || null
         })
     })
 
@@ -69,6 +76,7 @@ const formatForecastData = (spot: any, forecasts: any[], tides: any[], waterTemp
 
     let output = `Spot: ${spot.name}\nLocation: ${spot.region}, ${spot.state}\n`
     if (waterTemp) output += `Water temp: ${waterTemp}F\n`
+    output += `Data: Blended from WaveWatch III, ECMWF, and Open-Meteo models\n`
     output += `\n--- Forecast ---\n\n`
 
     const sortedDays = Object.values(byDay).sort((a: any, b: any) => a.date - b.date).slice(0, 5)
@@ -82,8 +90,16 @@ const formatForecastData = (spot: any, forecasts: any[], tides: any[], waterTemp
         }
         const am = day.forecasts.find((f: any) => f.period === 'AM')
         const pm = day.forecasts.find((f: any) => f.period === 'PM')
-        if (am) output += `  AM: ${am.waveHeight}ft, ${am.wavePeriod}s, ${am.windSpeed}mph ${am.windDirCompass} (${am.windQuality})\n`
-        if (pm) output += `  PM: ${pm.waveHeight}ft, ${pm.wavePeriod}s, ${pm.windSpeed}mph ${pm.windDirCompass} (${pm.windQuality})\n`
+        if (am) {
+            let amLine = `  AM: ${am.waveHeight}ft, ${am.wavePeriod}s, ${am.windSpeed}mph ${am.windDirCompass} (${am.windQuality})`
+            if (am.confidence === 'low') amLine += ' [uncertain]'
+            output += amLine + '\n'
+        }
+        if (pm) {
+            let pmLine = `  PM: ${pm.waveHeight}ft, ${pm.wavePeriod}s, ${pm.windSpeed}mph ${pm.windDirCompass} (${pm.windQuality})`
+            if (pm.confidence === 'low') pmLine += ' [uncertain]'
+            output += pmLine + '\n'
+        }
         output += `\n`
     })
     return output

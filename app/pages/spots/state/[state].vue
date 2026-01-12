@@ -44,7 +44,7 @@
                 <p class="text-gray-500">{{ bestSpot.region }}</p>
               </div>
               <div class="text-right">
-                <p class="text-3xl font-black">{{ formatWaveHeight(bestSpot.forecast?.wave_height) }}</p>
+                <p class="text-3xl font-black">{{ formatWaveHeight(bestSpot.forecast?.blended_wave_height ?? bestSpot.forecast?.wave_height) }}</p>
                 <span 
                   class="inline-block px-3 py-1 rounded text-sm font-bold"
                   :style="{ backgroundColor: getSpotColor(bestSpot), color: getSpotScore(bestSpot) > 40 ? '#fff' : '#000' }"
@@ -83,7 +83,7 @@
                   <p class="text-sm text-gray-500">{{ spot.region }}</p>
                 </div>
                 <div v-if="spot.forecast" class="text-right flex-shrink-0">
-                  <p class="text-xl sm:text-2xl font-black">{{ formatWaveHeight(spot.forecast.wave_height) }}</p>
+                  <p class="text-xl sm:text-2xl font-black">{{ formatWaveHeight(spot.forecast.blended_wave_height ?? spot.forecast.wave_height) }}</p>
                   <p class="text-xs text-gray-500">{{ getSpotLabel(spot) }}</p>
                 </div>
                 <div v-else class="text-right text-gray-400">
@@ -230,9 +230,10 @@ const getSpotScore = (spot) => {
   if (!spot.forecast) return 0
   const f = spot.forecast
   return calculateRating({
-    waveHeight: f.wave_height,
-    wavePeriod: f.wave_period,
-    waveDirection: f.wave_direction,
+    // Use blended values when available
+    waveHeight: f.blended_wave_height ?? f.wave_height,
+    wavePeriod: f.blended_wave_period ?? f.wave_period,
+    waveDirection: f.blended_wave_direction ?? f.wave_direction,
     swellWaveHeight: f.swell_wave_height,
     swellWavePeriod: f.swell_wave_period,
     swellWaveDirection: f.swell_wave_direction,
