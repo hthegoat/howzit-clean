@@ -180,13 +180,35 @@ serve(async (req) => {
     }
 
     try {
-        const { data: spots, error } = await supabase.from('spots').select('id, name')
+        // Parse optional batch parameters
+        let limit = 10  // Process 10 spots at a time to avoid timeout
+        let offset = 0
+        
+        try {
+            const body = await req.json()
+            if (body.limit) limit = Math.min(body.limit, 20)  // Max 20 per call
+            if (body.offset) offset = body.offset
+        } catch {
+            // No body or invalid JSON, use defaults
+        }
+
+        const { data: spots, error } = await supabase
+            .from('spots')
+            .select('id, name')
+            .order('name')
+            .range(offset, offset + limit - 1)
+            
         if (error || !spots) {
             return new Response(JSON.stringify({ error: 'Failed to fetch spots' }), { 
                 status: 500,
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             })
         }
+
+        // Get total count
+        const { count } = await supabase
+            .from('spots')
+            .select('id', { count: 'exact', head: true })
 
         const results = []
 
@@ -204,9 +226,12 @@ serve(async (req) => {
         const successCount = results.filter(r => r.status === 'success').length
 
         return new Response(JSON.stringify({ 
-            processed: spots.length, 
+            processed: spots.length,
             successful: successCount,
             failed: spots.length - successCount,
+            total: count,
+            offset: offset,
+            next_offset: offset + spots.length < (count || 0) ? offset + spots.length : null,
             results 
         }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }

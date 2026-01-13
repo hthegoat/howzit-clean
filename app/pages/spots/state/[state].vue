@@ -326,10 +326,10 @@ const canonicalUrl = computed(() =>
 )
 
 useHead({
-  title: computed(() => `${stateDisplay.value} Surf Report - Howzit`),
+  title: computed(() => `${stateDisplay.value} Surf Report & Forecast - Live Conditions | Howzit`),
   meta: [
     { name: 'description', content: stateDescription },
-    { property: 'og:title', content: computed(() => `${stateDisplay.value} Surf Report - Howzit`) },
+    { property: 'og:title', content: computed(() => `${stateDisplay.value} Surf Report & Forecast - Live Conditions | Howzit`) },
     { property: 'og:description', content: stateDescription },
     { property: 'og:type', content: 'website' },
     { property: 'og:url', content: canonicalUrl },
