@@ -34,5 +34,44 @@ export default defineSitemapEventHandler(async (event) => {
     })
   }
   
+  // Add blog posts
+  const blogPosts = [
+    'free-surf-report-app-no-ads',
+    'how-to-read-a-surf-report',
+    '3-wave-forecast-models'
+  ]
+  
+  blogPosts.forEach(slug => {
+    urls.push({
+      loc: `/blog/${slug}`,
+      lastmod: now,
+      changefreq: 'weekly',
+      priority: 0.9
+    })
+  })
+  
+  // Add blog index
+  urls.push({
+    loc: '/blog',
+    lastmod: now,
+    changefreq: 'weekly',
+    priority: 0.8
+  })
+  
+  // Add static pages
+  urls.push({
+    loc: '/about',
+    lastmod: now,
+    changefreq: 'monthly',
+    priority: 0.5
+  })
+  
+  urls.push({
+    loc: '/how-we-rate',
+    lastmod: now,
+    changefreq: 'monthly',
+    priority: 0.6
+  })
+  
   return urls
 })

@@ -384,10 +384,15 @@ const displayForecast = computed(() => {
 })
 
 const spotInfo = computed(() => ({
-  skill_level: 'All levels',
-  best_tide: 'Mid to High',
-  best_swell_direction: ['E', 'ESE', 'SE'],
-  best_wind_direction: ['W', 'NW']
+  skill_level: spot.value?.skill_level || 'All Levels',
+  best_tide: spot.value?.best_tide || 'Mid',
+  best_swell_direction: spot.value?.best_swell_direction || ['E', 'NE'],
+  best_wind_direction: spot.value?.best_wind_direction || ['W', 'NW'],
+  break_type: spot.value?.break_type || 'Beach Break',
+  bottom_type: spot.value?.bottom_type || 'Sand',
+  crowd_level: spot.value?.crowd_level || 'Moderate',
+  parking_info: spot.value?.parking_info,
+  local_tips: spot.value?.local_tips
 }))
 
 const hazards = computed(() => {
@@ -463,12 +468,13 @@ const sunTimes = ref(null)
 // Fetch data on mount
 onMounted(async () => {
   if (spot.value?.id) {
-    // Summary
+    // Summary - get today's or most recent
+    const today = new Date().toISOString().split('T')[0]
     const { data: summary } = await supabase
       .from('spot_summaries')
       .select('summary, generated_at')
       .eq('spot_id', spot.value.id)
-      .order('generated_at', { ascending: false })
+      .order('forecast_date', { ascending: false })
       .limit(1)
       .single()
     spotSummary.value = summary

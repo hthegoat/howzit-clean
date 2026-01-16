@@ -22,6 +22,11 @@
       </div>
 
       <div v-else>
+        <!-- Swell Radar -->
+        <div class="mb-8">
+          <SwellRadar :state="stateSlug" />
+        </div>
+
         <!-- Map -->
         <div class="mb-8">
           <SpotMap 
