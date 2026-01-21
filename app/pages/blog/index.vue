@@ -11,17 +11,17 @@
       <div class="space-y-6">
         <NuxtLink 
           v-for="post in posts" 
-          :key="post.slug"
-          :to="`/blog/${post.slug}`"
+          :key="post._path"
+          :to="post._path"
           class="block bg-white border-2 border-black rounded-lg p-6 shadow-[4px_4px_0px_#000] hover:shadow-[2px_2px_0px_#000] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
         >
-          <p class="text-sm text-gray-500 mb-2">{{ post.date }}</p>
+          <p class="text-sm text-gray-500 mb-2">{{ formatDate(post.date) }}</p>
           <h2 class="text-xl sm:text-2xl font-black mb-2">{{ post.title }}</h2>
-          <p class="text-gray-600">{{ post.excerpt }}</p>
+          <p class="text-gray-600">{{ post.description }}</p>
         </NuxtLink>
       </div>
 
-      <div v-if="posts.length === 0" class="text-center py-12 text-gray-500">
+      <div v-if="!posts?.length" class="text-center py-12 text-gray-500">
         <p>No posts yet. Check back soon.</p>
       </div>
     </main>
@@ -31,28 +31,22 @@
 </template>
 
 <script setup>
-const posts = [
-  {
-    slug: 'free-surf-report-app-no-ads',
-    title: 'Free Surf Report App With No Ads — Why We Built Howzit',
-    excerpt: 'Every surf app is either paywalled, ad-infested, or both. So I built something else.',
-    date: 'January 13, 2026'
-  },
-  {
-    slug: 'how-to-read-a-surf-report',
-    title: 'How to Read a Surf Report: A Beginner\'s Guide to Better Waves',
-    excerpt: 'Wave height, period, wind, tides — what does it all mean? Here\'s the guide I wish someone gave me when I started surfing.',
-    date: 'January 12, 2026'
-  },
-  {
-    slug: '3-wave-forecast-models',
-    title: 'I Compared 3 Wave Forecast Models — Here\'s Why Your Surf App Might Be Lying to You',
-    excerpt: 'Most surf apps use one model. When it\'s wrong, you\'re wrong. So I pulled data from three models and compared them. They disagreed 85% of the time.',
-    date: 'January 12, 2026'
-  }
-]
+const { data: posts } = await useAsyncData('blog-posts', () => 
+  queryContent('blog')
+    .sort({ date: -1 })
+    .find()
+)
 
-const siteUrl = 'https://www.hwztsurf.com'
+const formatDate = (date) => {
+  if (!date) return ''
+  return new Date(date).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+const siteUrl = 'https://hwztsurf.com'
 
 useHead({
   title: 'Blog - Howzit',

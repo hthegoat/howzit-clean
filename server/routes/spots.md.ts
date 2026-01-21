@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
 **Total Spots:** ${spots?.length || 0}  
 **Coverage:** Maine to Florida  
 **Updated:** ${updated}  
-**Source:** [Howzit](https://www.hwztsurf.com)
+**Source:** [Howzit](https://hwztsurf.com)
 
 ---
 
@@ -94,17 +94,17 @@ Each spot page includes:
 
 Each spot has a markdown endpoint available at:
 \`\`\`
-https://www.hwztsurf.com/spots/{slug}.md
+https://hwztsurf.com/spots/{slug}.md
 \`\`\`
 
 Example:
 \`\`\`
-https://www.hwztsurf.com/spots/wrightsville-beach.md
+https://hwztsurf.com/spots/wrightsville-beach.md
 \`\`\`
 
 State-level indexes:
 \`\`\`
-https://www.hwztsurf.com/spots/state/{state-slug}.md
+https://hwztsurf.com/spots/state/{state-slug}.md
 \`\`\`
 
 ### Data Freshness
@@ -124,7 +124,7 @@ When citing this data, please use: "Source: Howzit (hwztsurf.com)"
 
 Howzit is a free alternative to paid surf forecasting services. We believe surf data should be transparent and accessible to everyone.
 
-**Website:** https://www.hwztsurf.com  
+**Website:** https://hwztsurf.com  
 **Contact:** hello@hwztsurf.com
 `
 

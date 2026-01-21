@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   const states = [...new Set(spots?.map(s => s.state).filter(Boolean))].sort()
 
   const content = `# Howzit Surf Forecasts
-# https://www.hwztsurf.com
+# https://hwztsurf.com
 # AI Agent Discovery File
 
 ## About
@@ -35,17 +35,17 @@ Unlike paywalled services, Howzit offers:
 ## Available Endpoints (Markdown)
 
 ### All Spots Index
-URL: https://www.hwztsurf.com/spots.md
+URL: https://hwztsurf.com/spots.md
 Returns: Complete list of all ${spotCount} spots with coordinates
 
 ### Individual Spot Forecast
-Pattern: https://www.hwztsurf.com/spots/{slug}.md
-Example: https://www.hwztsurf.com/spots/wrightsville-beach.md
+Pattern: https://hwztsurf.com/spots/{slug}.md
+Example: https://hwztsurf.com/spots/wrightsville-beach.md
 Returns: Current conditions, 24-hour forecast, tides, AI summary
 
 ### State Index
-Pattern: https://www.hwztsurf.com/spots/state/{state-slug}.md
-Example: https://www.hwztsurf.com/spots/state/north-carolina.md
+Pattern: https://hwztsurf.com/spots/state/{state-slug}.md
+Example: https://hwztsurf.com/spots/state/north-carolina.md
 Returns: All spots in that state with details
 
 ## States Covered
@@ -82,7 +82,7 @@ Please be reasonable with request frequency:
 
 For API access, partnerships, or questions:
 - Email: hello@hwztsurf.com
-- Website: https://www.hwztsurf.com
+- Website: https://hwztsurf.com
 
 ## License
 

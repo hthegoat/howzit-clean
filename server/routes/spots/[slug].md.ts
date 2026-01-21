@@ -126,7 +126,7 @@ function buildSpotMarkdown(
 **Location:** ${spot.region || ''}, ${spot.state}  
 **Coordinates:** ${spot.latitude}, ${spot.longitude}  
 **Updated:** ${updated}  
-**Source:** [Howzit](https://www.hwztsurf.com/spots/${spot.slug})
+**Source:** [Howzit](https://hwztsurf.com/spots/${spot.slug})
 
 ---
 
@@ -242,8 +242,8 @@ ${spot.description || 'A surf spot on the East Coast.'}
 
 Howzit provides free, transparent surf forecasts for the East Coast. Unlike other services, we show you our data sources and don't hide behind paywalls.
 
-**Website:** https://www.hwztsurf.com  
-**This spot:** https://www.hwztsurf.com/spots/${spot.slug}
+**Website:** https://hwztsurf.com  
+**This spot:** https://hwztsurf.com/spots/${spot.slug}
 
 ### Attribution
 

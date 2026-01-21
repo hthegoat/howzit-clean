@@ -13,7 +13,12 @@ interface Spot {
 }
 
 // ============================================
-// BLENDING ALGORITHM v2
+// BLENDING ALGORITHM v3 - Open-Meteo Primary
+// ============================================
+// Rationale: Global models (WW3, ECMWF) consistently over-forecast 
+// for nearshore East Coast spots. Open-Meteo's higher resolution 
+// coastal data is more accurate for beach breaks. WW3/ECMWF are 
+// used for confidence validation, not primary signal.
 // ============================================
 function blendForecasts(ww3: number | null, openMeteo: number | null, ecmwf: number | null): {
   value: number | null;
@@ -21,92 +26,67 @@ function blendForecasts(ww3: number | null, openMeteo: number | null, ecmwf: num
   spread: number | null;
   method: string;
 } {
-  const values = [ww3, openMeteo, ecmwf].filter((v): v is number => v != null && !isNaN(v));
-  
-  if (values.length === 0) return { value: null, confidence: 'none', spread: null, method: 'no data' };
-  if (values.length === 1) return { value: values[0], confidence: 'low', spread: null, method: 'single source' };
-  
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const spread = max - min;
-  
-  if (values.length === 2) {
-    return {
-      value: (values[0] + values[1]) / 2,
-      confidence: spread < 0.5 ? 'high' : spread < 1 ? 'medium' : 'low',
-      spread,
-      method: 'two source average'
+  // Open-Meteo is our primary source
+  if (openMeteo == null || isNaN(openMeteo)) {
+    // Fallback: no Open-Meteo data, use others
+    const fallbacks = [ww3, ecmwf].filter((v): v is number => v != null && !isNaN(v));
+    if (fallbacks.length === 0) return { value: null, confidence: 'none', spread: null, method: 'no data' };
+    if (fallbacks.length === 1) return { value: fallbacks[0], confidence: 'low', spread: null, method: 'fallback single' };
+    return { 
+      value: (fallbacks[0] + fallbacks[1]) / 2, 
+      confidence: 'low', 
+      spread: Math.abs(fallbacks[0] - fallbacks[1]),
+      method: 'fallback average (no OM)' 
     };
   }
   
-  // 3 sources
-  const sorted = [...values].sort((a, b) => a - b);
-  const median = sorted[1];
+  // We have Open-Meteo - use it as primary
+  const globalModels = [ww3, ecmwf].filter((v): v is number => v != null && !isNaN(v));
   
-  const diffWW3_OM = ww3 != null && openMeteo != null ? Math.abs(ww3 - openMeteo) : Infinity;
-  const diffWW3_EC = ww3 != null && ecmwf != null ? Math.abs(ww3 - ecmwf) : Infinity;
-  const diffOM_EC = openMeteo != null && ecmwf != null ? Math.abs(openMeteo - ecmwf) : Infinity;
+  // No global models to validate against
+  if (globalModels.length === 0) {
+    return { value: openMeteo, confidence: 'medium', spread: null, method: 'Open-Meteo only' };
+  }
   
-  // HIGH confidence: all 3 within 0.5ft (0.15m)
-  if (spread < 0.15) {
+  // Calculate spread for confidence
+  const allValues = [openMeteo, ...globalModels];
+  const spread = Math.max(...allValues) - Math.min(...allValues);
+  const avgGlobal = globalModels.reduce((a, b) => a + b, 0) / globalModels.length;
+  const omVsGlobalDiff = Math.abs(openMeteo - avgGlobal);
+  
+  // HIGH confidence: Open-Meteo agrees with global models (within ~1ft / 0.3m)
+  if (omVsGlobalDiff < 0.3) {
+    // Slight blend toward Open-Meteo (70/30) when they agree
+    const blended = openMeteo * 0.7 + avgGlobal * 0.3;
     return {
-      value: (ww3! + openMeteo! + ecmwf!) / 3,
+      value: blended,
       confidence: 'high',
       spread,
-      method: 'average (all agree)'
+      method: 'OM-primary blend (models agree)'
     };
   }
   
-  const agreementThreshold = 0.15; // ~0.5ft in meters
-  const outlierThreshold = 0.3;    // ~1ft in meters
-  
-  // Check for 2-model agreement
-  if (diffOM_EC < agreementThreshold && diffWW3_OM > outlierThreshold && diffWW3_EC > outlierThreshold) {
-    const agreedValue = (openMeteo! + ecmwf!) / 2;
+  // MEDIUM confidence: Moderate disagreement (1-2ft / 0.3-0.6m)
+  // Trust Open-Meteo more but acknowledge uncertainty
+  if (omVsGlobalDiff < 0.6) {
+    // 85% Open-Meteo, 15% global average
+    const blended = openMeteo * 0.85 + avgGlobal * 0.15;
     return {
-      value: agreedValue * 0.75 + ww3! * 0.25,
+      value: blended,
       confidence: 'medium',
       spread,
-      method: 'weighted (OM+ECMWF agree)'
+      method: 'OM-primary (moderate spread)'
     };
   }
   
-  if (diffWW3_EC < agreementThreshold && diffWW3_OM > outlierThreshold && diffOM_EC > outlierThreshold) {
-    const agreedValue = (ww3! + ecmwf!) / 2;
-    return {
-      value: agreedValue * 0.75 + openMeteo! * 0.25,
-      confidence: 'medium',
-      spread,
-      method: 'weighted (WW3+ECMWF agree)'
-    };
-  }
-  
-  if (diffWW3_OM < agreementThreshold && diffWW3_EC > outlierThreshold && diffOM_EC > outlierThreshold) {
-    const agreedValue = (ww3! + openMeteo!) / 2;
-    return {
-      value: agreedValue * 0.75 + ecmwf! * 0.25,
-      confidence: 'medium',
-      spread,
-      method: 'weighted (WW3+OM agree)'
-    };
-  }
-  
-  // Medium if spread is moderate (< 0.45m / ~1.5ft)
-  if (spread < 0.45) {
-    return {
-      value: median,
-      confidence: 'medium',
-      spread,
-      method: 'median (moderate spread)'
-    };
-  }
-  
-  // LOW confidence: spread > 1.5ft
+  // LOW confidence: Large disagreement (>2ft / 0.6m)
+  // Still trust Open-Meteo but flag uncertainty
+  // Global models likely over-forecasting offshore swell that won't reach shore
   return {
-    value: median,
+    value: openMeteo,
     confidence: 'low',
     spread,
-    method: 'median (high uncertainty)'
+    method: 'OM-primary (high uncertainty)'
   };
 }
 

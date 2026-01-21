@@ -3,14 +3,24 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
 
   modules: [
+    '@nuxt/content',
     '@nuxtjs/tailwindcss',
     '@nuxtjs/google-fonts',
     '@nuxtjs/supabase',
     '@nuxtjs/sitemap',
   ],
 
+  content: {
+    highlight: {
+      theme: 'github-dark'
+    },
+    markdown: {
+      anchorLinks: false
+    }
+  },
+
   site: {
-    url: 'https://www.hwztsurf.com',
+    url: 'https://hwztsurf.com',
   },
 
   sitemap: {

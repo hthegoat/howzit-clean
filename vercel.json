@@ -1,0 +1,15 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.hwztsurf.com"
+        }
+      ],
+      "destination": "https://hwztsurf.com/:path*",
+      "permanent": true
+    }
+  ]
+}

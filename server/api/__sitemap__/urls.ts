@@ -38,7 +38,9 @@ export default defineSitemapEventHandler(async (event) => {
   const blogPosts = [
     'free-surf-report-app-no-ads',
     'how-to-read-a-surf-report',
-    '3-wave-forecast-models'
+    '3-wave-forecast-models',
+    'swell-period-and-direction-explained',
+    'how-far-ahead-trust-surf-forecast'
   ]
   
   blogPosts.forEach(slug => {

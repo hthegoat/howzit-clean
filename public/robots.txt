@@ -1,6 +1,11 @@
 User-agent: *
 Allow: /
 
+# Block internal/auth pages from indexing
+Disallow: /_nuxt/
+Disallow: /confirm
+Disallow: /auth/
+
 # AI Agents - Welcome! We have markdown endpoints for you
 User-agent: GPTBot
 Allow: /
@@ -39,7 +44,7 @@ User-agent: cohere-ai
 Allow: /
 
 # Sitemap
-Sitemap: https://www.hwztsurf.com/sitemap.xml
+Sitemap: https://hwztsurf.com/sitemap.xml
 
 # AI-readable content discovery
-# See https://www.hwztsurf.com/llms.txt for available endpoints
+# See https://hwztsurf.com/llms.txt for available endpoints
