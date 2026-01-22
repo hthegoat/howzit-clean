@@ -28,7 +28,7 @@ I figured — what if I just looked at all the models at once?
 
 ## What I actually did
 
-Grabbed 48 hours of forecasts for Deal, NJ from three models:
+Grabbed 48 hours of forecasts for a [New Jersey beach break](/spots/state/new-jersey) from three models:
 
 **[WaveWatch III](https://polar.ncep.noaa.gov/waves/)** — NOAA runs this one. Been around since the 90s. American model, uses our weather data. Pretty good at catching swells early and tracking short-period stuff.
 
@@ -82,7 +82,7 @@ Regular forecasts hide this from you. They give you one number like it's gospel.
 
 ## I built this thing
 
-Called it [Howzit](https://hwztsurf.com). Free forecast for 76 East Coast spots.
+Called it [Howzit](https://hwztsurf.com). Free forecast for 76 East Coast spots — from [Sebastian Inlet](/spots/sebastian-inlet) in Florida to [Higgins Beach](/spots/higgins-beach) in Maine.
 
 There's a surf graph with a toggle — HWZT, WW3, ECMWF, OM. HWZT is the blend. But you can flip through each model and see exactly what it thinks. Hover on any hour and you see all three numbers plus confidence.
 

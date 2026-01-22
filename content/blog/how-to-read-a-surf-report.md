@@ -77,7 +77,7 @@ If you're at an east-facing beach and the swell is coming from the south, you mi
 - **NE swells** — Nor'easter energy. Can be powerful but often comes with bad wind.
 - **SE/S swells** — Hurricane swells. When these hit, pay attention.
 
-Each beach has a "swell window" — the directions it picks up best. Local knowledge helps here, or you find a forecast that accounts for it (shameless plug: we do this at [Howzit](https://hwztsurf.com)).
+Each beach has a "swell window" — the directions it picks up best. Local knowledge helps here, or you find a forecast that accounts for it (shameless plug: we do this at [Howzit](https://hwztsurf.com/spots)).
 
 ## Tides: The Timing Factor
 
@@ -147,6 +147,6 @@ Breaking it down:
 
 Forecasts are predictions, not guarantees. Models disagree with each other constantly — sometimes by 2-3ft for the same spot.
 
-That's actually why we built [Howzit](https://hwztsurf.com). We pull from three different forecast models and show you when they agree (high confidence) vs. when they're all over the place (low confidence).
+That's actually why we built [Howzit](https://hwztsurf.com). We pull from three different forecast models and show you when they agree (high confidence) vs. when they're all over the place (low confidence). Check spots like [Virginia Beach](/spots/virginia-beach) or [Cocoa Beach](/spots/cocoa-beach-pier) to see it in action.
 
 Check the report, but also check the cams. And when in doubt, just go look. Sometimes the best sessions happen when the forecast looks meh.

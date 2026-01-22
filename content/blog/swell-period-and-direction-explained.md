@@ -69,7 +69,7 @@ Hurricane and tropical storm swells. These can light up spots that are usually f
 
 **N Swells (350° - 30°)**
 
-Rare on the East Coast. Usually means something interesting is happening weather-wise. Some spots in the Outer Banks and New England can pick these up.
+Rare on the East Coast. Usually means something interesting is happening weather-wise. Some spots in the [Outer Banks](/spots/state/north-carolina) and [New England](/spots/state/massachusetts) can pick these up.
 
 ### Swell Windows Are Local
 
@@ -101,7 +101,7 @@ Most surf apps give you a single wave height number. Maybe a simple rating. They
 
 That's why you drive an hour for "4ft good" and find 2ft blown-out mush.
 
-At [Howzit](https://hwztsurf.com), we show you all of it. Wave height, swell period, swell direction for each spot. Our spot ratings factor in how well each beach picks up the current swell direction — not just raw height.
+At [Howzit](https://hwztsurf.com/spots), we show you all of it. Wave height, swell period, swell direction for each spot. Our spot ratings factor in how well each beach picks up the current swell direction — not just raw height. Check a spot like [Cape Hatteras](/spots/cape-hatteras) or [New Smyrna Inlet](/spots/new-smyrna-inlet) to see the full breakdown.
 
 You can see the swell charts and make your own call. Because once you understand period and direction, you'll never trust a simple "3-4ft" forecast again.
 

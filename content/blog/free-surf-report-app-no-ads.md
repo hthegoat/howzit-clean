@@ -67,11 +67,11 @@ But the core product — checking today's surf at your local break — stays fre
 
 76 spots across the East Coast right now:
 
-- **New Jersey** — Manasquan, Asbury, LBI, the usual suspects
-- **New York** — Rockaway, Long Beach, Montauk
-- **North Carolina** — Outer Banks, Wrightsville, all of it
-- **Florida** — Jacksonville down to Miami
-- Plus Maine, New Hampshire, Massachusetts, Rhode Island, Delaware, Maryland, Virginia, South Carolina, Georgia
+- **New Jersey** — [Manasquan Inlet](/spots/manasquan-inlet), [Asbury Park](/spots/asbury-park), [Long Beach Island](/spots/lbi-surf-city), the usual suspects
+- **New York** — [Rockaway Beach](/spots/rockaway-67th), [Long Beach](/spots/long-beach-ny), [Montauk](/spots/ditch-plains)
+- **North Carolina** — [Cape Hatteras](/spots/cape-hatteras), [Jennette's Pier](/spots/jennettes-pier), [Wrightsville Beach](/spots/wrightsville-beach), all of it
+- **Florida** — [Jacksonville Beach](/spots/jacksonville-beach-pier) down to [Miami Beach](/spots/south-beach-miami)
+- Plus [Maine](/spots/state/maine), [New Hampshire](/spots/state/new-hampshire), [Massachusetts](/spots/state/massachusetts), [Rhode Island](/spots/state/rhode-island), [Delaware](/spots/state/delaware), [Maryland](/spots/state/maryland), [Virginia](/spots/state/virginia), [South Carolina](/spots/state/south-carolina), [Georgia](/spots/state/georgia)
 
 More coming. West Coast eventually. Hawaii probably.
 

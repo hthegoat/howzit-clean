@@ -71,20 +71,24 @@
       <div class="flex items-center gap-1 text-gray-400">
         <span class="text-xs">Accurate?</span>
         <button 
-          @click="$emit('feedback', true)" 
-          class="hover:text-green-600 transition-colors p-0.5"
+          @click="submitFeedback(true)" 
+          class="hover:text-green-600 transition-all p-0.5"
+          :class="{ 'animate-ping-once text-green-600': feedbackState === 'up' }"
           title="Yes"
+          :disabled="feedbackState !== null"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4" :fill="feedbackState === 'up' ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
           </svg>
         </button>
         <button 
-          @click="$emit('feedback', false)" 
-          class="hover:text-red-500 transition-colors p-0.5"
+          @click="submitFeedback(false)" 
+          class="hover:text-red-500 transition-all p-0.5"
+          :class="{ 'animate-ping-once text-red-500': feedbackState === 'down' }"
           title="No"
+          :disabled="feedbackState !== null"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4" :fill="feedbackState === 'down' ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v2a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
           </svg>
         </button>
@@ -94,9 +98,16 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const emit = defineEmits(['feedback'])
+
+const feedbackState = ref(null)
+
+const submitFeedback = (accurate) => {
+  feedbackState.value = accurate ? 'up' : 'down'
+  emit('feedback', accurate)
+}
 
 const props = defineProps({
   spotName: { type: String, required: true },
@@ -137,28 +148,12 @@ const accentColor = computed(() => {
   return '#d1d5db'  // gray-300
 })
 
+const { formatDirection } = useHowzitRating()
+
 const formattedTimestamp = computed(() => {
   if (!props.timestamp) return '--'
   return new Date(props.timestamp).toLocaleString()
 })
-
-const formattedTides = computed(() => {
-  if (!props.todayTides?.length) return []
-  return props.todayTides.map(t => ({
-    type: t.type,
-    time: new Date(t.timestamp).toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      hour12: true 
-    })
-  }))
-})
-
-const formatDirection = (degrees) => {
-  if (degrees === null || degrees === undefined) return '--'
-  const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
-  return dirs[Math.round(degrees / 22.5) % 16]
-}
 
 // Simplified wind quality - 3 categories: Offshore, Sideshore, Onshore
 const getSimpleWindQuality = (windDir) => {
@@ -198,49 +193,6 @@ const windQualityColor = computed(() => {
   return colors[windQuality.value]
 })
 
-// Wind summary from hourly data
-const windSummary = computed(() => {
-  if (!props.hourlyData?.length) return null
-  
-  // Group consecutive hours by wind quality
-  const periods = []
-  let currentQuality = null
-  let startHour = null
-  
-  const formatHour = (hour) => {
-    const h = hour % 12 || 12
-    const ampm = hour < 12 ? 'am' : 'pm'
-    return `${h}${ampm}`
-  }
-  
-  props.hourlyData.forEach((h, i) => {
-    const quality = getSimpleWindQuality(h.windDirection)
-    
-    if (quality !== currentQuality) {
-      if (currentQuality !== null && startHour !== null) {
-        periods.push({ quality: currentQuality, start: startHour, end: h.hour })
-      }
-      currentQuality = quality
-      startHour = h.hour
-    }
-    
-    if (i === props.hourlyData.length - 1 && currentQuality !== null) {
-      periods.push({ quality: currentQuality, start: startHour, end: h.hour + 1 })
-    }
-  })
-  
-  if (periods.length === 0) return null
-  if (periods.length === 1) {
-    const p = periods[0]
-    const label = p.quality === 'offshore' ? 'Offshore' : p.quality === 'sideshore' ? 'Sideshore' : 'Onshore'
-    return `${label} all day`
-  }
-  
-  // Build summary
-  const labels = { 'offshore': 'offshore', 'sideshore': 'sideshore', 'onshore': 'onshore' }
-  return periods.map(p => `${labels[p.quality]} ${formatHour(p.start)}-${formatHour(p.end)}`).join(', ')
-})
-
 // Wetsuit recommendation based on water temp
 const wetsuit = computed(() => {
   const temp = props.current?.temp
@@ -253,3 +205,15 @@ const wetsuit = computed(() => {
   return '6/5mm + boots/hood'
 })
 </script>
+
+<style scoped>
+.animate-ping-once {
+  animation: ping-once 0.4s ease-out;
+}
+
+@keyframes ping-once {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+</style>

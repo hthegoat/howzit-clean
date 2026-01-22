@@ -324,11 +324,79 @@ onMounted(async () => {
 })
 
 // SEO
-const siteUrl = 'https://www.hwztsurf.com'
+const siteUrl = 'https://hwztsurf.com'
 
 const canonicalUrl = computed(() => 
   stateSlug.value ? `${siteUrl}/spots/state/${stateSlug.value}` : ''
 )
+
+// JSON-LD structured data
+const jsonLd = computed(() => {
+  if (!stateDisplay.value || !spots.value.length) return null
+  
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: `${stateDisplay.value} Surf Report & Forecast`,
+    description: stateDescription.value,
+    url: canonicalUrl.value,
+    mainEntity: {
+      '@type': 'ItemList',
+      name: `${stateDisplay.value} Surf Spots`,
+      description: `Surf spots in ${stateDisplay.value}`,
+      numberOfItems: spots.value.length,
+      itemListElement: spots.value.slice(0, 10).map((spot, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        item: {
+          '@type': 'Beach',
+          name: spot.name,
+          description: `Surf spot in ${spot.region}, ${stateDisplay.value}`,
+          url: `${siteUrl}/spots/${spot.slug}`,
+          geo: spot.latitude && spot.longitude ? {
+            '@type': 'GeoCoordinates',
+            latitude: spot.latitude,
+            longitude: spot.longitude
+          } : undefined,
+          address: {
+            '@type': 'PostalAddress',
+            addressRegion: stateDisplay.value,
+            addressLocality: spot.region,
+            addressCountry: 'US'
+          }
+        }
+      }))
+    },
+    breadcrumb: {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'Home',
+          item: siteUrl
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: 'All Spots',
+          item: `${siteUrl}/spots`
+        },
+        {
+          '@type': 'ListItem',
+          position: 3,
+          name: stateDisplay.value,
+          item: canonicalUrl.value
+        }
+      ]
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Howzit',
+      url: siteUrl
+    }
+  }
+})
 
 useHead({
   title: computed(() => `${stateDisplay.value} Surf Report & Forecast - Live Conditions | Howzit`),
@@ -341,6 +409,12 @@ useHead({
   ],
   link: [
     { rel: 'canonical', href: canonicalUrl }
+  ],
+  script: [
+    {
+      type: 'application/ld+json',
+      innerHTML: computed(() => jsonLd.value ? JSON.stringify(jsonLd.value) : '')
+    }
   ]
 })
 </script>

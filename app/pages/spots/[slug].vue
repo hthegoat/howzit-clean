@@ -53,16 +53,6 @@
               :beach-orientation="beachOrientation"
             />
 
-            <!-- Today's Tide card removed - info now in SpotHero -->
-
-            <!-- Hourly for selected day (not today) -->
-            <HourlyDetail 
-              v-if="selectedDay && selectedDay.dayName !== 'Today'"
-              :day="selectedDay"
-              :hourly-data="hourlyData"
-              :beach-orientation="beachOrientation"
-            />
-
             <SpotHistory :spot="spot" />
 
             <SpotAbout :spot="spot" />
@@ -90,9 +80,8 @@ const route = useRoute()
 const supabase = useSupabaseClient()
 
 // Composables
-const { hourlyData, fetchHourlyForecast } = useHourlyForecast()
 const { hourlyData: todayHourlyData, fetchHourlyForecast: fetchTodayHourly } = useHourlyForecast()
-const { calculateRating, scoreToStars, scoreToLabel } = useHowzitRating()
+const { calculateRating, scoreToStars, scoreToLabel, formatDirection } = useHowzitRating()
 
 // Refs
 const spot = ref(null)
@@ -100,7 +89,6 @@ const surflineForecasts = ref([])
 const surflineTides = ref([])
 const buoyReading = ref(null)
 const spotSummary = ref(null)
-const selectedDay = ref(null)
 const nearbySpots = ref([])
 const graphHoverTime = ref(null)
 
@@ -119,34 +107,16 @@ spot.value = data.value
 const beachOrientation = computed(() => spot.value?.orientation || 90)
 
 // Feedback handler
-const handleFeedback = (accurate) => {
-  console.log('Feedback:', { spot: spot.value?.slug, rating: ratingLabel.value, accurate })
-  // TODO: Save to DB later
-}
-
-// Helper functions
-const formatDirection = (degrees) => {
-  if (degrees === null || degrees === undefined) return '--'
-  const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
-  return dirs[Math.round(degrees / 45) % 8]
-}
-
-const formatWaveRange = (min, max) => {
-  if (!isFinite(min) || !isFinite(max)) return '--'
-  const minRound = Math.max(1, Math.round(min))
-  const maxRound = Math.max(1, Math.round(max))
-  if (minRound === maxRound) return `${minRound}ft`
-  return `${minRound}-${maxRound}ft`
-}
-
-const selectDay = async (day) => {
-  if (!day) return
-  if (selectedDay.value?.dayName === day.dayName) {
-    selectedDay.value = null
-    return
+const handleFeedback = async (accurate) => {
+  try {
+    await supabase.from('feedback').insert({
+      spot_id: spot.value?.id,
+      page_url: window.location.pathname,
+      rating: accurate
+    })
+  } catch (e) {
+    console.error('Feedback error:', e)
   }
-  selectedDay.value = day
-  await fetchHourlyForecast(spot.value.latitude, spot.value.longitude, day.date)
 }
 
 // Computed
@@ -302,87 +272,6 @@ const currentRatingScore = computed(() => {
 const currentRating = computed(() => scoreToStars(currentRatingScore.value))
 const ratingLabel = computed(() => scoreToLabel(currentRatingScore.value))
 
-const displayForecast = computed(() => {
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  const today = new Date()
-  
-  const byDay = {}
-  surflineForecasts.value.forEach(f => {
-    const date = new Date(f.timestamp).toDateString()
-    if (!byDay[date]) byDay[date] = []
-    byDay[date].push(f)
-  })
-
-  // Helper to average an array of numbers
-  const avg = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null
-  const validNums = (readings, key) => readings.map(r => r[key]).filter(v => v !== null && v !== undefined)
-
-  const dailyData = Object.entries(byDay).map(([dateStr, readings]) => {
-    const date = new Date(dateStr)
-    const isToday = date.toDateString() === today.toDateString()
-    
-    // Skip today - it has its own section
-    if (isToday) return null
-    
-    // Get wave heights in feet (convert from meters) - prefer blended
-    const waveHeights = readings.map(r => {
-      const h = r.blended_wave_height ?? r.wave_height
-      return h ? h * 3.281 : null
-    }).filter(v => v !== null)
-    const waveMin = waveHeights.length ? Math.min(...waveHeights) : 0
-    const waveMax = waveHeights.length ? Math.max(...waveHeights) : 0
-    
-    // Average all the swell components (keep in meters for algorithm) - prefer blended
-    const avgWaveHeight = avg(validNums(readings, 'blended_wave_height')) || avg(validNums(readings, 'wave_height'))
-    const avgWavePeriod = avg(validNums(readings, 'blended_wave_period')) || avg(validNums(readings, 'wave_period'))
-    const avgWaveDir = avg(validNums(readings, 'blended_wave_direction')) || avg(validNums(readings, 'wave_direction'))
-    const avgSwellHeight = avg(validNums(readings, 'swell_wave_height'))
-    const avgSwellPeriod = avg(validNums(readings, 'swell_wave_period'))
-    const avgSwellDir = avg(validNums(readings, 'swell_wave_direction'))
-    const avgWindWaveHeight = avg(validNums(readings, 'wind_wave_height'))
-    const avgWindWavePeriod = avg(validNums(readings, 'wind_wave_period'))
-    const avgWindWaveDir = avg(validNums(readings, 'wind_wave_direction'))
-    const avgSecondaryHeight = avg(validNums(readings, 'secondary_swell_height'))
-    const avgSecondaryPeriod = avg(validNums(readings, 'secondary_swell_period'))
-    const avgSecondaryDir = avg(validNums(readings, 'secondary_swell_direction'))
-    const avgWindSpeed = avg(validNums(readings, 'wind_speed'))
-    const avgWindDir = avg(validNums(readings, 'wind_direction'))
-    const avgWindGust = avg(validNums(readings, 'wind_gust'))
-    
-    // Calculate Howzit rating with full swell data
-    const score = calculateRating({
-      waveHeight: avgWaveHeight,
-      wavePeriod: avgWavePeriod,
-      waveDirection: avgWaveDir,
-      swellWaveHeight: avgSwellHeight,
-      swellWavePeriod: avgSwellPeriod,
-      swellWaveDirection: avgSwellDir,
-      windWaveHeight: avgWindWaveHeight,
-      windWavePeriod: avgWindWavePeriod,
-      windWaveDirection: avgWindWaveDir,
-      secondarySwellHeight: avgSecondaryHeight,
-      secondarySwellPeriod: avgSecondaryPeriod,
-      secondarySwellDirection: avgSecondaryDir,
-      windSpeed: avgWindSpeed,
-      windDirection: avgWindDir,
-      windGust: avgWindGust,
-      beachOrientation: beachOrientation.value
-    })
-
-    return {
-      date,
-      dayName: days[date.getDay()],
-      waveDisplay: formatWaveRange(waveMin, waveMax),
-      period: avgSwellPeriod ? Math.round(avgSwellPeriod) : (avgWavePeriod ? Math.round(avgWavePeriod) : '--'),
-      windSpeed: avgWindSpeed ? Math.round(avgWindSpeed * 0.621) : '--',
-      stars: scoreToStars(score),
-      score
-    }
-  }).filter(Boolean) // Remove nulls (today)
-
-  return dailyData.sort((a, b) => a.date - b.date).slice(0, 5)
-})
-
 const spotInfo = computed(() => ({
   skill_level: spot.value?.skill_level || 'All Levels',
   best_tide: spot.value?.best_tide || 'Mid',
@@ -462,8 +351,6 @@ const tideState = computed(() => {
 
 // Sun times
 const sunTimes = ref(null)
-
-// No auto-select - user clicks to expand future days
 
 // Fetch data on mount
 onMounted(async () => {

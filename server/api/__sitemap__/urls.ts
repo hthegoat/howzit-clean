@@ -40,7 +40,8 @@ export default defineSitemapEventHandler(async (event) => {
     'how-to-read-a-surf-report',
     '3-wave-forecast-models',
     'swell-period-and-direction-explained',
-    'how-far-ahead-trust-surf-forecast'
+    'how-far-ahead-trust-surf-forecast',
+    'best-beginner-surf-spots-east-coast'
   ]
   
   blogPosts.forEach(slug => {

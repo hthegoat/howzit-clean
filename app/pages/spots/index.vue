@@ -107,27 +107,32 @@ const getSpotLabel = (spot) => {
 }
 
 onMounted(async () => {
-  const { data: spotsData } = await supabase
-    .from('spots')
-    .select('*')
-    .order('name')
+  // Fetch spots and forecasts in parallel (2 queries instead of 77)
+  const now = new Date().toISOString()
+  
+  const [spotsResult, forecastsResult] = await Promise.all([
+    supabase.from('spots').select('*').order('name'),
+    supabase
+      .from('forecasts')
+      .select('*')
+      .gte('timestamp', now)
+      .order('timestamp', { ascending: true })
+  ])
 
-  if (spotsData) {
-    const spotsWithForecasts = await Promise.all(
-      spotsData.map(async (spot) => {
-        const { data: forecast } = await supabase
-          .from('forecasts')
-          .select('*')
-          .eq('spot_id', spot.id)
-          .gte('timestamp', new Date().toISOString())
-          .order('timestamp', { ascending: true })
-          .limit(1)
-          .single()
-        
-        return { ...spot, forecast }
-      })
-    )
-    spots.value = spotsWithForecasts
+  if (spotsResult.data) {
+    // Group forecasts by spot_id and take the first (nearest) one
+    const forecastsBySpot = {}
+    forecastsResult.data?.forEach(f => {
+      if (!forecastsBySpot[f.spot_id]) {
+        forecastsBySpot[f.spot_id] = f
+      }
+    })
+    
+    // Join spots with their forecasts
+    spots.value = spotsResult.data.map(spot => ({
+      ...spot,
+      forecast: forecastsBySpot[spot.id] || null
+    }))
   }
   loading.value = false
 })

@@ -52,7 +52,7 @@ Here's something most forecast apps won't tell you: different models have differ
 
 **Open-Meteo / GFS-based:** Good baseline, updates often. Useful for cross-referencing but not always the most accurate standalone.
 
-No single model wins every time. That's why at [Howzit](https://hwztsurf.com) we pull from all three and show you when they agree vs. disagree. High agreement at 3 days out? More confident. Models all over the place? Take it with a grain of salt.
+No single model wins every time. That's why at [Howzit](https://hwztsurf.com/spots) we pull from all three and show you when they agree vs. disagree. High agreement at 3 days out? More confident. Models all over the place? Take it with a grain of salt.
 
 ## How to Actually Plan a Surf Trip
 
@@ -88,7 +88,7 @@ The morning of a session, check the nearest offshore buoy. If it's showing the s
 
 Buoys are also useful for timing. You can watch a swell build on the buoy hours before it hits the beach. Once you see it on the buoy, you know it's real and roughly when it'll arrive.
 
-We show buoy data on [Howzit](https://hwztsurf.com) for this reason. It's the ground truth that cuts through model uncertainty.
+We show buoy data on [Howzit](https://hwztsurf.com/spots) for this reason — check spots like [Sebastian Inlet](/spots/sebastian-inlet), [Folly Beach](/spots/folly-beach), or [Manasquan](/spots/manasquan-inlet) to see the nearest buoy readings alongside the forecast. It's the ground truth that cuts through model uncertainty.
 
 ## The Confidence Indicator
 

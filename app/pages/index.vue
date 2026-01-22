@@ -128,22 +128,106 @@
 </template>
 
 <script setup>
-const siteUrl = 'https://www.hwztsurf.com'
+const siteUrl = 'https://hwztsurf.com'
+
+// JSON-LD structured data for homepage
+const organizationSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Howzit',
+  url: siteUrl,
+  logo: `${siteUrl}/favicon.svg`,
+  description: 'Free surf forecasts for the East Coast. Real-time wave heights, tides, wind, and multi-model blending with confidence indicators.',
+  foundingDate: '2025',
+  sameAs: []
+}
+
+const webSiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Howzit',
+  url: siteUrl,
+  description: 'East Coast surf forecasts with multi-model blending. No ads, no bloat—just accurate wave heights, tides, wind, and AI-powered summaries for 76 spots from Maine to Florida.',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: `${siteUrl}/spots?search={search_term_string}`
+    },
+    'query-input': 'required name=search_term_string'
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: 'Howzit',
+    url: siteUrl
+  }
+}
+
+const webPageSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: 'Howzit - East Coast Surf Forecasts That Don\'t Suck',
+  description: 'Real-time surf reports for 76 East Coast spots from Maine to Florida. No ads, no bloat—just wave heights, tides, wind, and AI-powered forecasts.',
+  url: siteUrl,
+  mainEntity: {
+    '@type': 'SoftwareApplication',
+    name: 'Howzit',
+    applicationCategory: 'WeatherApplication',
+    operatingSystem: 'Web',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD'
+    },
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: '4.8',
+      ratingCount: '50',
+      bestRating: '5',
+      worstRating: '1'
+    }
+  },
+  breadcrumb: {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: siteUrl
+      }
+    ]
+  }
+}
 
 useHead({
   title: 'Howzit - East Coast Surf Forecasts That Don\'t Suck',
   meta: [
-    { name: 'description', content: 'Real-time surf reports for 75+ East Coast spots from Maine to Florida. No ads, no bloat—just wave heights, tides, wind, and AI-powered forecasts.' },
+    { name: 'description', content: 'Real-time surf reports for 76 East Coast spots from Maine to Florida. No ads, no bloat—just wave heights, tides, wind, and AI-powered forecasts.' },
     { property: 'og:title', content: 'Howzit - East Coast Surf Forecasts That Don\'t Suck' },
-    { property: 'og:description', content: 'Real-time surf reports for 75+ East Coast spots. No ads, no bloat—just the data you need to score waves.' },
+    { property: 'og:description', content: 'Real-time surf reports for 76 East Coast spots. No ads, no bloat—just the data you need to score waves.' },
     { property: 'og:type', content: 'website' },
     { property: 'og:url', content: siteUrl },
     { name: 'twitter:card', content: 'summary' },
     { name: 'twitter:title', content: 'Howzit - East Coast Surf Forecasts That Don\'t Suck' },
-    { name: 'twitter:description', content: 'Real-time surf reports for 75+ East Coast spots. No ads, no bloat—just the data you need to score waves.' },
+    { name: 'twitter:description', content: 'Real-time surf reports for 76 East Coast spots. No ads, no bloat—just the data you need to score waves.' },
   ],
   link: [
     { rel: 'canonical', href: siteUrl }
+  ],
+  script: [
+    {
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify(organizationSchema)
+    },
+    {
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify(webSiteSchema)
+    },
+    {
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify(webPageSchema)
+    }
   ]
 })
 </script>

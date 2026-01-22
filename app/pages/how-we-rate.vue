@@ -263,19 +263,67 @@
 </template>
 
 <script setup>
-const siteUrl = 'https://www.hwztsurf.com'
+const siteUrl = 'https://hwztsurf.com'
+
+// FAQ data for schema
+const faqItems = [
+  {
+    question: 'How does Howzit calculate surf ratings?',
+    answer: 'Howzit combines wave height, wave period, swell direction relative to beach orientation, and wind speed/direction into a 0-100 score. Wave conditions account for 65 points (factoring in swell vs wind chop), and wind conditions account for 35 points (offshore wind scores highest). The final rating maps to Epic, Good, Fair, Poor, or Flat.'
+  },
+  {
+    question: 'What data sources does Howzit use for surf forecasts?',
+    answer: 'Howzit blends three independent wave models: NOAA WaveWatch III, ECMWF WAM (European model), and Open-Meteo. Tide data comes from NOAA CO-OPS, buoy readings from NDBC, and water temperature from Open-Meteo sea surface data.'
+  },
+  {
+    question: 'Why does Howzit use multiple forecast models?',
+    answer: 'No single wave model is always correct. By comparing WaveWatch III, ECMWF, and Open-Meteo, Howzit can show when models agree (high confidence) vs. when they disagree (low confidence). This helps you make better decisions about whether to trust the forecast.'
+  },
+  {
+    question: 'How accurate is the Howzit surf forecast?',
+    answer: 'Surf forecasting is inherently uncertain. Howzit is most accurate within 24-48 hours. Beyond 3 days, expect changes. We show confidence levels so you know when to trust the forecast vs. when to stay flexible. Local factors like sandbars and jetties also affect conditions in ways models cannot fully capture.'
+  },
+  {
+    question: 'What does wave period mean in a surf report?',
+    answer: 'Wave period is the time between wave crests in seconds. Longer periods (11+ seconds) mean powerful, organized ground swell. Short periods (under 7 seconds) indicate weak, choppy wind swell. Period matters more than wave height for surf quality—a 3ft wave at 12 seconds is usually better than 5ft at 6 seconds.'
+  },
+  {
+    question: 'Why do different beaches have different ratings for the same swell?',
+    answer: 'Each beach faces a different direction. An east-facing beach needs east swell to light up, while a south-facing beach needs south swell. Howzit configures each spot with its beach orientation and calculates how well the current swell direction matches. Wind direction also affects each beach differently based on orientation.'
+  }
+]
+
+// JSON-LD structured data
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqItems.map(item => ({
+    '@type': 'Question',
+    name: item.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: item.answer
+    }
+  }))
+}
 
 useHead({
-  title: 'How We Rate - Howzit',
+  title: 'How We Rate Surf Conditions - Howzit',
   meta: [
     { name: 'description', content: 'Learn how Howzit calculates surf conditions. Our transparent rating algorithm factors in wave height, period, swell direction, and wind to give you accurate forecasts.' },
-    { property: 'og:title', content: 'How We Rate - Howzit' },
+    { property: 'og:title', content: 'How We Rate Surf Conditions - Howzit' },
     { property: 'og:description', content: 'Learn how Howzit calculates surf conditions. Our transparent rating algorithm explained.' },
     { property: 'og:type', content: 'website' },
     { property: 'og:url', content: `${siteUrl}/how-we-rate` },
   ],
   link: [
     { rel: 'canonical', href: `${siteUrl}/how-we-rate` }
+  ],
+  script: [
+    {
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify(jsonLd)
+    }
   ]
 })
 </script>
