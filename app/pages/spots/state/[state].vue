@@ -14,19 +14,14 @@
         <p class="text-gray-600 max-w-2xl">{{ stateDescription }}</p>
       </div>
 
-      <div v-if="loading" class="text-gray-500">Loading spots...</div>
+      <div v-if="!spots?.length && !spotsData" class="text-gray-500">Loading spots...</div>
       
-      <div v-else-if="spots.length === 0" class="text-center py-12">
+      <div v-else-if="!spots?.length" class="text-center py-12">
         <p class="text-gray-500 mb-4">No spots found for {{ stateDisplay }}.</p>
         <NuxtLink to="/spots" class="text-blue-600 hover:underline">View all spots</NuxtLink>
       </div>
 
       <div v-else>
-        <!-- Swell Radar -->
-        <div class="mb-8">
-          <SwellRadar :state="stateSlug" />
-        </div>
-
         <!-- Map -->
         <div class="mb-8">
           <SpotMap 
@@ -122,9 +117,6 @@
 const route = useRoute()
 const supabase = useSupabaseClient()
 const { calculateRating, scoreToColor, scoreToLabel } = useHowzitRating()
-
-const spots = ref([])
-const loading = ref(true)
 
 // State slug mapping
 const stateMap = {
@@ -230,12 +222,58 @@ const stateLongDescription = computed(() =>
   stateDescriptions[stateDisplay.value]?.long || `Check current surf conditions across ${stateDisplay.value}. Our forecasts are updated hourly with wave height, period, wind, and conditions ratings.`
 )
 
+// SSR-compatible data fetching - match pattern from [slug].vue
+const { data: spotsData } = await useAsyncData(`state-spots-${route.params.state}`, async () => {
+  // Get state param directly from route (works during SSR)
+  const stateParam = route.params.state?.toLowerCase()
+  if (!stateParam) return null
+  
+  const stateData = stateMap[stateParam]
+  if (!stateData) return null
+  
+  const { data } = await supabase
+    .from('spots')
+    .select('*')
+    .eq('state', stateData.name)
+    .order('name')
+  
+  return data
+})
+
+// Spots with forecasts (loaded client-side for performance)
+const spots = ref(spotsData.value || [])
+const loading = ref(false)
+
+// Load forecasts client-side after initial render
+onMounted(async () => {
+  if (!spots.value?.length) return
+  
+  loading.value = true
+  
+  const spotsWithForecasts = await Promise.all(
+    spots.value.map(async (spot) => {
+      const { data: forecast } = await supabase
+        .from('forecasts')
+        .select('*')
+        .eq('spot_id', spot.id)
+        .gte('timestamp', new Date().toISOString())
+        .order('timestamp', { ascending: true })
+        .limit(1)
+        .single()
+      
+      return { ...spot, forecast }
+    })
+  )
+  
+  spots.value = spotsWithForecasts
+  loading.value = false
+})
+
 // Rating helpers
 const getSpotScore = (spot) => {
   if (!spot.forecast) return 0
   const f = spot.forecast
   return calculateRating({
-    // Use blended values when available
     waveHeight: f.blended_wave_height ?? f.wave_height,
     wavePeriod: f.blended_wave_period ?? f.wave_period,
     waveDirection: f.blended_wave_direction ?? f.wave_direction,
@@ -258,18 +296,16 @@ const getSpotScore = (spot) => {
 const getSpotColor = (spot) => scoreToColor(getSpotScore(spot))
 const getSpotLabel = (spot) => scoreToLabel(getSpotScore(spot))
 
-// Best spot = highest rating
 const bestSpot = computed(() => {
-  if (!spots.value.length) return null
+  if (!spots.value?.length) return null
   return [...spots.value].sort((a, b) => getSpotScore(b) - getSpotScore(a))[0]
 })
 
-// Sort spots by rating (best first)
 const sortedSpots = computed(() => {
+  if (!spots.value?.length) return []
   return [...spots.value].sort((a, b) => getSpotScore(b) - getSpotScore(a))
 })
 
-// Formatting helpers
 const formatWaveHeight = (heightMeters) => {
   if (!heightMeters) return '--'
   const feet = heightMeters * 3.281
@@ -290,47 +326,12 @@ const formatDirection = (degrees) => {
   return dirs[Math.round(degrees / 22.5) % 16]
 }
 
-// Fetch spots for this state
-onMounted(async () => {
-  if (!stateInfo.value) {
-    loading.value = false
-    return
-  }
-
-  const { data: spotsData } = await supabase
-    .from('spots')
-    .select('*')
-    .eq('state', stateInfo.value.name)
-    .order('name')
-
-  if (spotsData) {
-    const spotsWithForecasts = await Promise.all(
-      spotsData.map(async (spot) => {
-        const { data: forecast } = await supabase
-          .from('forecasts')
-          .select('*')
-          .eq('spot_id', spot.id)
-          .gte('timestamp', new Date().toISOString())
-          .order('timestamp', { ascending: true })
-          .limit(1)
-          .single()
-        
-        return { ...spot, forecast }
-      })
-    )
-    spots.value = spotsWithForecasts
-  }
-  loading.value = false
-})
-
-// SEO
 const siteUrl = 'https://hwztsurf.com'
 
 const canonicalUrl = computed(() => 
   stateSlug.value ? `${siteUrl}/spots/state/${stateSlug.value}` : ''
 )
 
-// JSON-LD structured data
 const jsonLd = computed(() => {
   if (!stateDisplay.value || !spots.value.length) return null
   
@@ -370,31 +371,12 @@ const jsonLd = computed(() => {
     breadcrumb: {
       '@type': 'BreadcrumbList',
       itemListElement: [
-        {
-          '@type': 'ListItem',
-          position: 1,
-          name: 'Home',
-          item: siteUrl
-        },
-        {
-          '@type': 'ListItem',
-          position: 2,
-          name: 'All Spots',
-          item: `${siteUrl}/spots`
-        },
-        {
-          '@type': 'ListItem',
-          position: 3,
-          name: stateDisplay.value,
-          item: canonicalUrl.value
-        }
+        { '@type': 'ListItem', position: 1, name: 'Home', item: siteUrl },
+        { '@type': 'ListItem', position: 2, name: 'All Spots', item: `${siteUrl}/spots` },
+        { '@type': 'ListItem', position: 3, name: stateDisplay.value, item: canonicalUrl.value }
       ]
     },
-    publisher: {
-      '@type': 'Organization',
-      name: 'Howzit',
-      url: siteUrl
-    }
+    publisher: { '@type': 'Organization', name: 'Howzit', url: siteUrl }
   }
 })
 

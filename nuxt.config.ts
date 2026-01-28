@@ -49,6 +49,9 @@ export default defineNuxtConfig({
 
   app: {
     head: {
+      htmlAttrs: {
+        lang: 'en'
+      },
       title: 'Howzit - Surf Forecasts That Don\'t Suck',
       script: [
         {

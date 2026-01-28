@@ -93,20 +93,20 @@ Howzit provides free surf forecasts using data from:
 
 View surf spots in other East Coast states:
 
-- [Maine](/spots/state/maine.md)
-- [New Hampshire](/spots/state/new-hampshire.md)
-- [Massachusetts](/spots/state/massachusetts.md)
-- [Rhode Island](/spots/state/rhode-island.md)
-- [Connecticut](/spots/state/connecticut.md)
-- [New York](/spots/state/new-york.md)
-- [New Jersey](/spots/state/new-jersey.md)
-- [Delaware](/spots/state/delaware.md)
-- [Maryland](/spots/state/maryland.md)
-- [Virginia](/spots/state/virginia.md)
-- [North Carolina](/spots/state/north-carolina.md)
-- [South Carolina](/spots/state/south-carolina.md)
-- [Georgia](/spots/state/georgia.md)
-- [Florida](/spots/state/florida.md)
+- [Maine](/api/spots/state/maine.md)
+- [New Hampshire](/api/spots/state/new-hampshire.md)
+- [Massachusetts](/api/spots/state/massachusetts.md)
+- [Rhode Island](/api/spots/state/rhode-island.md)
+- [Connecticut](/api/spots/state/connecticut.md)
+- [New York](/api/spots/state/new-york.md)
+- [New Jersey](/api/spots/state/new-jersey.md)
+- [Delaware](/api/spots/state/delaware.md)
+- [Maryland](/api/spots/state/maryland.md)
+- [Virginia](/api/spots/state/virginia.md)
+- [North Carolina](/api/spots/state/north-carolina.md)
+- [South Carolina](/api/spots/state/south-carolina.md)
+- [Georgia](/api/spots/state/georgia.md)
+- [Florida](/api/spots/state/florida.md)
 
 ---
 

@@ -71,7 +71,7 @@ Each spot page includes:
       md += `| ${spot.name} | ${spot.region || '-'} | ${coords} | [View](/spots/${spot.slug}.md) |\n`
     })
     
-    md += `\n[View all ${state} spots](/spots/state/${stateSlug}.md)\n\n`
+    md += `\n[View all ${state} spots](/api/spots/state/${stateSlug}.md)\n\n`
   })
 
   md += `---
@@ -82,7 +82,7 @@ Each spot page includes:
 
   stateNames.forEach(state => {
     const stateSlug = state.toLowerCase().replace(/\s+/g, '-')
-    md += `- [${state}](/spots/state/${stateSlug}.md) (${byState[state].length} spots)\n`
+    md += `- [${state}](/api/spots/state/${stateSlug}.md) (${byState[state].length} spots)\n`
   })
 
   md += `
@@ -104,7 +104,7 @@ https://hwztsurf.com/spots/wrightsville-beach.md
 
 State-level indexes:
 \`\`\`
-https://hwztsurf.com/spots/state/{state-slug}.md
+https://hwztsurf.com/api/spots/state/{state-slug}.md
 \`\`\`
 
 ### Data Freshness

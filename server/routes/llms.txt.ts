@@ -44,8 +44,8 @@ Example: https://hwztsurf.com/spots/wrightsville-beach.md
 Returns: Current conditions, 24-hour forecast, tides, AI summary
 
 ### State Index
-Pattern: https://hwztsurf.com/spots/state/{state-slug}.md
-Example: https://hwztsurf.com/spots/state/north-carolina.md
+Pattern: https://hwztsurf.com/api/spots/state/{state-slug}.md
+Example: https://hwztsurf.com/api/spots/state/north-carolina.md
 Returns: All spots in that state with details
 
 ## States Covered

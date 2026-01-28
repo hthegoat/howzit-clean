@@ -34,6 +34,22 @@ export default defineSitemapEventHandler(async (event) => {
     })
   }
   
+  // Add homepage
+  urls.push({
+    loc: '/',
+    lastmod: now,
+    changefreq: 'daily',
+    priority: 1.0
+  })
+  
+  // Add spots index
+  urls.push({
+    loc: '/spots',
+    lastmod: now,
+    changefreq: 'hourly',
+    priority: 0.9
+  })
+  
   // Add blog posts
   const blogPosts = [
     'free-surf-report-app-no-ads',
@@ -41,7 +57,9 @@ export default defineSitemapEventHandler(async (event) => {
     '3-wave-forecast-models',
     'swell-period-and-direction-explained',
     'how-far-ahead-trust-surf-forecast',
-    'best-beginner-surf-spots-east-coast'
+    'best-beginner-surf-spots-east-coast',
+    'how-to-score-surf-noreasters-east-coast',
+    'winter-storm-fern-surf-forecast-january-2026'
   ]
   
   blogPosts.forEach(slug => {
@@ -49,7 +67,7 @@ export default defineSitemapEventHandler(async (event) => {
       loc: `/blog/${slug}`,
       lastmod: now,
       changefreq: 'weekly',
-      priority: 0.9
+      priority: 0.7
     })
   })
   
@@ -58,7 +76,7 @@ export default defineSitemapEventHandler(async (event) => {
     loc: '/blog',
     lastmod: now,
     changefreq: 'weekly',
-    priority: 0.8
+    priority: 0.6
   })
   
   // Add static pages
@@ -66,14 +84,21 @@ export default defineSitemapEventHandler(async (event) => {
     loc: '/about',
     lastmod: now,
     changefreq: 'monthly',
-    priority: 0.5
+    priority: 0.4
   })
   
   urls.push({
     loc: '/how-we-rate',
     lastmod: now,
     changefreq: 'monthly',
-    priority: 0.6
+    priority: 0.5
+  })
+  
+  urls.push({
+    loc: '/waitlist',
+    lastmod: now,
+    changefreq: 'monthly',
+    priority: 0.5
   })
   
   return urls
