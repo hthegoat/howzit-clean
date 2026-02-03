@@ -2,7 +2,6 @@ User-agent: *
 Allow: /
 
 # Block internal/auth pages from indexing
-Disallow: /_nuxt/
 Disallow: /confirm
 Disallow: /auth/
 

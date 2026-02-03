@@ -64,8 +64,38 @@
 const supabase = useSupabaseClient()
 const { calculateRating, scoreToColor, scoreToLabel } = useHowzitRating()
 
-const spots = ref([])
-const loading = ref(true)
+const loading = ref(false)
+
+// === SSR: Fetch spots + nearest forecasts server-side ===
+const { data: ssrSpots } = await useAsyncData('spots-index', async () => {
+  const now = new Date().toISOString()
+  
+  const [spotsResult, forecastsResult] = await Promise.all([
+    supabase.from('spots').select('*').order('name'),
+    supabase
+      .from('forecasts')
+      .select('*')
+      .gte('timestamp', now)
+      .order('timestamp', { ascending: true })
+  ])
+
+  if (!spotsResult.data) return []
+
+  // Group forecasts by spot_id and take the first (nearest) one
+  const forecastsBySpot = {}
+  forecastsResult.data?.forEach(f => {
+    if (!forecastsBySpot[f.spot_id]) {
+      forecastsBySpot[f.spot_id] = f
+    }
+  })
+  
+  return spotsResult.data.map(spot => ({
+    ...spot,
+    forecast: forecastsBySpot[spot.id] || null
+  }))
+})
+
+const spots = ref(ssrSpots.value || [])
 
 const getSpotScore = (spot) => {
   if (!spot.forecast) return 0
@@ -105,37 +135,6 @@ const getSpotColor = (spot) => {
 const getSpotLabel = (spot) => {
   return scoreToLabel(getSpotScore(spot))
 }
-
-onMounted(async () => {
-  // Fetch spots and forecasts in parallel (2 queries instead of 77)
-  const now = new Date().toISOString()
-  
-  const [spotsResult, forecastsResult] = await Promise.all([
-    supabase.from('spots').select('*').order('name'),
-    supabase
-      .from('forecasts')
-      .select('*')
-      .gte('timestamp', now)
-      .order('timestamp', { ascending: true })
-  ])
-
-  if (spotsResult.data) {
-    // Group forecasts by spot_id and take the first (nearest) one
-    const forecastsBySpot = {}
-    forecastsResult.data?.forEach(f => {
-      if (!forecastsBySpot[f.spot_id]) {
-        forecastsBySpot[f.spot_id] = f
-      }
-    })
-    
-    // Join spots with their forecasts
-    spots.value = spotsResult.data.map(spot => ({
-      ...spot,
-      forecast: forecastsBySpot[spot.id] || null
-    }))
-  }
-  loading.value = false
-})
 
 const states = computed(() => {
   const stateOrder = ['New Jersey', 'New York', 'North Carolina']
@@ -178,7 +177,7 @@ const formatWind = (kmh) => {
   return `${Math.round(kmh * 0.621)}mph`
 }
 
-const siteUrl = 'https://www.hwztsurf.com'
+const siteUrl = 'https://hwztsurf.com'
 
 useHead({ 
   title: 'East Coast Surf Reports & Forecasts - 76 Spots | Howzit',

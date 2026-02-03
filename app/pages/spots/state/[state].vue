@@ -222,52 +222,49 @@ const stateLongDescription = computed(() =>
   stateDescriptions[stateDisplay.value]?.long || `Check current surf conditions across ${stateDisplay.value}. Our forecasts are updated hourly with wave height, period, wind, and conditions ratings.`
 )
 
-// SSR-compatible data fetching - match pattern from [slug].vue
+// === SSR: Fetch spots AND their nearest forecasts server-side ===
 const { data: spotsData } = await useAsyncData(`state-spots-${route.params.state}`, async () => {
-  // Get state param directly from route (works during SSR)
   const stateParam = route.params.state?.toLowerCase()
   if (!stateParam) return null
   
   const stateData = stateMap[stateParam]
   if (!stateData) return null
+
+  const now = new Date().toISOString()
   
-  const { data } = await supabase
-    .from('spots')
-    .select('*')
-    .eq('state', stateData.name)
-    .order('name')
-  
-  return data
+  // Fetch spots and all forecasts in parallel (2 queries, not N+1)
+  const [spotsRes, forecastsRes] = await Promise.all([
+    supabase
+      .from('spots')
+      .select('*')
+      .eq('state', stateData.name)
+      .order('name'),
+    supabase
+      .from('forecasts')
+      .select('*')
+      .gte('timestamp', now)
+      .order('timestamp', { ascending: true })
+  ])
+
+  if (!spotsRes.data) return null
+
+  // Group forecasts by spot_id, take the first (nearest) one
+  const forecastsBySpot = {}
+  forecastsRes.data?.forEach(f => {
+    if (!forecastsBySpot[f.spot_id]) {
+      forecastsBySpot[f.spot_id] = f
+    }
+  })
+
+  // Join spots with forecasts
+  return spotsRes.data.map(spot => ({
+    ...spot,
+    forecast: forecastsBySpot[spot.id] || null
+  }))
 })
 
-// Spots with forecasts (loaded client-side for performance)
 const spots = ref(spotsData.value || [])
 const loading = ref(false)
-
-// Load forecasts client-side after initial render
-onMounted(async () => {
-  if (!spots.value?.length) return
-  
-  loading.value = true
-  
-  const spotsWithForecasts = await Promise.all(
-    spots.value.map(async (spot) => {
-      const { data: forecast } = await supabase
-        .from('forecasts')
-        .select('*')
-        .eq('spot_id', spot.id)
-        .gte('timestamp', new Date().toISOString())
-        .order('timestamp', { ascending: true })
-        .limit(1)
-        .single()
-      
-      return { ...spot, forecast }
-    })
-  )
-  
-  spots.value = spotsWithForecasts
-  loading.value = false
-})
 
 // Rating helpers
 const getSpotScore = (spot) => {

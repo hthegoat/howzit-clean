@@ -56,6 +56,21 @@
             <SpotHistory :spot="spot" />
 
             <SpotAbout :spot="spot" />
+
+            <!-- FAQ Section -->
+            <SpotFAQ
+              :spot-name="spot.name"
+              :state="spot.state"
+              :water-temp="currentConditions.temp"
+              :wave-height="currentConditions.height"
+              :tides="surflineTides"
+              :sunrise="sunTimes?.sunrise"
+              :sunset="sunTimes?.sunset"
+              :best-swell="spot.best_swell_direction"
+              :best-wind="spot.best_wind_direction"
+              :best-tide="spot.best_tide"
+              :skill-level="spot.skill_level"
+            />
           </div>
 
           <!-- Right Column -->
@@ -84,24 +99,86 @@ const { hourlyData: todayHourlyData, fetchHourlyForecast: fetchTodayHourly } = u
 const { calculateRating, scoreToStars, scoreToLabel, formatDirection } = useHowzitRating()
 
 // Refs
-const spot = ref(null)
-const surflineForecasts = ref([])
-const surflineTides = ref([])
-const buoyReading = ref(null)
-const spotSummary = ref(null)
-const nearbySpots = ref([])
 const graphHoverTime = ref(null)
 
-// Fetch spot data
-const { data } = await useAsyncData(`spot-${route.params.slug}`, async () => {
+// === SSR: Fetch ALL critical data server-side in a single useAsyncData call ===
+const { data: ssrData } = await useAsyncData(`spot-full-${route.params.slug}`, async () => {
+  // 1. Fetch spot
   const { data: spotData } = await supabase
     .from('spots')
     .select('*')
     .eq('slug', route.params.slug)
     .single()
-  return spotData
+  
+  if (!spotData) return null
+
+  const now = new Date()
+  const sixDaysOut = new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000)
+  const oneDayAgo = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000)
+  const eightDaysOut = new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000)
+
+  // 2. Fetch forecasts, tides, buoy, summary, nearby in parallel
+  const [forecastRes, tideRes, buoyRes, summaryRes, nearbyRes] = await Promise.all([
+    // Forecasts
+    supabase
+      .from('forecasts')
+      .select('*')
+      .eq('spot_id', spotData.id)
+      .gte('timestamp', now.toISOString())
+      .lte('timestamp', sixDaysOut.toISOString())
+      .order('timestamp', { ascending: true }),
+    // Tides
+    supabase
+      .from('tides')
+      .select('*')
+      .eq('spot_id', spotData.id)
+      .gte('timestamp', oneDayAgo.toISOString())
+      .lte('timestamp', eightDaysOut.toISOString())
+      .order('timestamp', { ascending: true }),
+    // Buoy
+    spotData.buoy_id
+      ? supabase
+          .from('buoy_readings')
+          .select('*')
+          .eq('buoy_id', spotData.buoy_id)
+          .order('timestamp', { ascending: false })
+          .limit(1)
+          .single()
+      : Promise.resolve({ data: null }),
+    // Summary
+    supabase
+      .from('spot_summaries')
+      .select('summary, generated_at')
+      .eq('spot_id', spotData.id)
+      .order('forecast_date', { ascending: false })
+      .limit(1)
+      .single(),
+    // Nearby spots
+    supabase
+      .from('spots')
+      .select('name, slug')
+      .eq('state', spotData.state)
+      .neq('slug', spotData.slug)
+      .limit(4)
+  ])
+
+  return {
+    spot: spotData,
+    forecasts: forecastRes.data || [],
+    tides: tideRes.data || [],
+    buoy: buoyRes.data || null,
+    summary: summaryRes.data || null,
+    nearby: (nearbyRes.data || []).map(s => ({ name: s.name, slug: s.slug, distance: 'Nearby' }))
+  }
 })
-spot.value = data.value
+
+// Unpack SSR data into refs (reactive so client-side updates still work)
+const spot = computed(() => ssrData.value?.spot || null)
+const surflineForecasts = ref(ssrData.value?.forecasts || [])
+const surflineTides = ref(ssrData.value?.tides || [])
+const buoyReading = ref(ssrData.value?.buoy || null)
+const spotSummary = ref(ssrData.value?.summary || null)
+const nearbySpots = ref(ssrData.value?.nearby || [])
 
 // Beach orientation (default 90 = east facing)
 const beachOrientation = computed(() => spot.value?.orientation || 90)
@@ -352,94 +429,30 @@ const tideState = computed(() => {
 // Sun times
 const sunTimes = ref(null)
 
-// Fetch data on mount
+// Client-only: fetch hourly detail data and sun times (not needed for SEO)
 onMounted(async () => {
-  if (spot.value?.id) {
-    // Summary - get today's or most recent
-    const today = new Date().toISOString().split('T')[0]
-    const { data: summary } = await supabase
-      .from('spot_summaries')
-      .select('summary, generated_at')
-      .eq('spot_id', spot.value.id)
-      .order('forecast_date', { ascending: false })
-      .limit(1)
-      .single()
-    spotSummary.value = summary
-
-    // Forecasts - now from 'forecasts' table (Open-Meteo)
-    const now = new Date()
-    const sixDaysOut = new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000)
-    const { data: forecastData } = await supabase
-      .from('forecasts')
-      .select('*')
-      .eq('spot_id', spot.value.id)
-      .gte('timestamp', now.toISOString())
-      .lte('timestamp', sixDaysOut.toISOString())
-      .order('timestamp', { ascending: true })
-    surflineForecasts.value = forecastData || []
-
-    // Tides - now from 'tides' table (NOAA CO-OPS)
-    // Fetch enough to cover full forecast period (7+ days)
-    const oneDayAgo = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000)
-    const eightDaysOut = new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000)
-    const { data: tideData } = await supabase
-      .from('tides')
-      .select('*')
-      .eq('spot_id', spot.value.id)
-      .gte('timestamp', oneDayAgo.toISOString())
-      .lte('timestamp', eightDaysOut.toISOString())
-      .order('timestamp', { ascending: true })
-    surflineTides.value = tideData || []
-
-    // Buoy
-    if (spot.value.buoy_id) {
-      const { data: buoyData } = await supabase
-        .from('buoy_readings')
-        .select('*')
-        .eq('buoy_id', spot.value.buoy_id)
-        .order('timestamp', { ascending: false })
-        .limit(1)
-        .single()
-      buoyReading.value = buoyData
-    }
-
-    // Nearby spots
-    const { data: allSpots } = await supabase
-      .from('spots')
-      .select('name, slug')
-      .eq('state', spot.value.state)
-      .neq('slug', spot.value.slug)
-      .limit(4)
-    nearbySpots.value = (allSpots || []).map(s => ({
-      name: s.name,
-      slug: s.slug,
-      distance: 'Nearby'
-    }))
-
-    // Fetch today's hourly data and sun times
-    if (spot.value.latitude && spot.value.longitude) {
-      await fetchTodayHourly(spot.value.latitude, spot.value.longitude, new Date())
-      
-      // Fetch sunrise/sunset
-      try {
-        const today = new Date().toISOString().split('T')[0]
-        const sunRes = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${spot.value.latitude}&longitude=${spot.value.longitude}&daily=sunrise,sunset&timezone=auto&start_date=${today}&end_date=${today}`
-        )
-        const sunData = await sunRes.json()
-        if (sunData.daily) {
-          const formatSunTime = (iso) => {
-            const d = new Date(iso)
-            return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-          }
-          sunTimes.value = {
-            sunrise: formatSunTime(sunData.daily.sunrise[0]),
-            sunset: formatSunTime(sunData.daily.sunset[0])
-          }
+  if (spot.value?.latitude && spot.value?.longitude) {
+    await fetchTodayHourly(spot.value.latitude, spot.value.longitude, new Date())
+    
+    // Fetch sunrise/sunset
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const sunRes = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${spot.value.latitude}&longitude=${spot.value.longitude}&daily=sunrise,sunset&timezone=auto&start_date=${today}&end_date=${today}`
+      )
+      const sunData = await sunRes.json()
+      if (sunData.daily) {
+        const formatSunTime = (iso) => {
+          const d = new Date(iso)
+          return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
         }
-      } catch (e) {
-        console.error('Failed to fetch sun times:', e)
+        sunTimes.value = {
+          sunrise: formatSunTime(sunData.daily.sunrise[0]),
+          sunset: formatSunTime(sunData.daily.sunset[0])
+        }
       }
+    } catch (e) {
+      console.error('Failed to fetch sun times:', e)
     }
   }
 })
@@ -507,6 +520,78 @@ const jsonLd = computed(() => {
   }
 })
 
+// FAQ JSON-LD for rich snippets
+const faqJsonLd = computed(() => {
+  if (!spot.value) return null
+  
+  const faqs = []
+  const name = spot.value.name
+  
+  // Water temp FAQ
+  if (currentConditions.value.temp && currentConditions.value.temp !== '--') {
+    faqs.push({
+      '@type': 'Question',
+      name: `What is the water temperature at ${name}?`,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: `The current water temperature at ${name} is ${currentConditions.value.temp}°F.`
+      }
+    })
+  }
+  
+  // Wave height FAQ
+  if (currentConditions.value.height && currentConditions.value.height !== '--') {
+    faqs.push({
+      '@type': 'Question',
+      name: `What is the surf like at ${name} today?`,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: `${name} currently has waves around ${currentConditions.value.height}. Conditions change throughout the day, so check back for updated forecasts.`
+      }
+    })
+  }
+  
+  // Best conditions FAQ
+  const bestSwell = spot.value.best_swell_direction
+  const bestWind = spot.value.best_wind_direction
+  if (bestSwell || bestWind) {
+    const swellStr = Array.isArray(bestSwell) ? bestSwell.join(', ') : bestSwell
+    const windStr = Array.isArray(bestWind) ? bestWind.join(', ') : bestWind
+    let answer = `${name} works best with `
+    if (swellStr) answer += `swells from the ${swellStr}`
+    if (swellStr && windStr) answer += ' and '
+    if (windStr) answer += `${windStr} winds (offshore)`
+    answer += '.'
+    
+    faqs.push({
+      '@type': 'Question',
+      name: `What are the best conditions for surfing ${name}?`,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: answer
+      }
+    })
+  }
+  
+  // How to read forecast FAQ
+  faqs.push({
+    '@type': 'Question',
+    name: `How do I read the surf forecast for ${name}?`,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: 'Our forecast shows wave height in feet, swell period in seconds (longer = more powerful), swell direction, wind speed/direction, and tide times. Look for longer periods (10+ seconds) and offshore winds for the best conditions.'
+    }
+  })
+  
+  if (faqs.length === 0) return null
+  
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs
+  }
+})
+
 useHead({
   title: computed(() => spot.value ? `${spot.value.name}, ${spot.value.state} Surf Report & Forecast - Howzit` : 'Loading...'),
   meta: [
@@ -526,6 +611,10 @@ useHead({
     {
       type: 'application/ld+json',
       innerHTML: computed(() => jsonLd.value ? JSON.stringify(jsonLd.value) : '')
+    },
+    {
+      type: 'application/ld+json',
+      innerHTML: computed(() => faqJsonLd.value ? JSON.stringify(faqJsonLd.value) : '')
     }
   ]
 })

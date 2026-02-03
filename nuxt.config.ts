@@ -26,10 +26,21 @@ export default defineNuxtConfig({
   sitemap: {
     sources: [
       '/api/__sitemap__/urls'
-    ],
-    defaults: {
-      lastmod: new Date().toISOString()
-    }
+    ]
+  },
+
+  // ISR: cache pages at the edge, revalidate in the background
+  routeRules: {
+    // Spot pages - cache 15 min, serve stale while revalidating
+    '/spots/**': { isr: 900 },
+    // Blog posts - cache 1 hour
+    '/blog/**': { isr: 3600 },
+    // Static pages - cache 1 day
+    '/about': { isr: 86400 },
+    '/how-we-rate': { isr: 86400 },
+    '/waitlist': { isr: 86400 },
+    // Homepage - cache 30 min
+    '/': { isr: 1800 },
   },
 
   css: ['@/assets/css/main.css'],
