@@ -38,7 +38,7 @@
           <BrutalCard class="p-6">
             <div class="text-4xl mb-4">📊</div>
             <h3 class="text-xl font-bold mb-2">Real Data, No Hype</h3>
-            <p class="text-gray-600">Direct from NOAA buoys and Surfline. We show you what's actually happening, not what gets clicks.</p>
+            <p class="text-gray-600">Direct from NOAA buoys, ECMWF, and Open-Meteo models. We show you what's actually happening, not what gets clicks.</p>
           </BrutalCard>
           
           <BrutalCard class="p-6">

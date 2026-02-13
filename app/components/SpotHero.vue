@@ -10,7 +10,18 @@
         </p>
         <h1 class="text-xl sm:text-2xl lg:text-4xl font-black uppercase break-words">{{ spotName }}</h1>
       </div>
-      <BrutalBadge :variant="ratingVariant">{{ ratingLabel }}</BrutalBadge>
+      <div class="flex items-start gap-2 shrink-0">
+        <button
+          v-if="isLoggedIn"
+          @click="handleFollow"
+          class="inline-block px-2.5 py-1 text-xs font-bold uppercase tracking-wide border-2 border-black rounded-[6px] shadow-[2px_2px_0px_#000] transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          :class="following ? 'bg-yellow-400 text-black' : 'bg-white text-black hover:bg-gray-50'"
+          :title="following ? 'Unfollow spot' : 'Follow spot'"
+        >
+          {{ following ? '★ Following' : '+ Follow' }}
+        </button>
+        <BrutalBadge :variant="ratingVariant">{{ ratingLabel }}</BrutalBadge>
+      </div>
     </div>
     
     <!-- Conditions Grid -->
@@ -111,6 +122,7 @@ const submitFeedback = (accurate) => {
 
 const props = defineProps({
   spotName: { type: String, required: true },
+  spotId: { type: String, default: null },
   state: { type: String, default: '' },
   region: { type: String, default: '' },
   buoyId: { type: String, default: '' },
@@ -125,6 +137,17 @@ const props = defineProps({
   beachOrientation: { type: Number, default: 90 },
   hourlyData: { type: Array, default: () => [] }
 })
+
+const { isLoggedIn } = useAuth()
+const { isFollowing, toggleFollow } = useMySpots()
+
+const following = computed(() => props.spotId ? isFollowing(props.spotId) : false)
+
+const handleFollow = async () => {
+  if (props.spotId) {
+    await toggleFollow(props.spotId)
+  }
+}
 
 const stateUrl = computed(() => {
   if (!props.state) return '/spots'

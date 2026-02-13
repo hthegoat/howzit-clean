@@ -39,14 +39,23 @@ export default defineNuxtConfig({
     '/about': { isr: 86400 },
     '/how-we-rate': { isr: 86400 },
     '/waitlist': { isr: 86400 },
+    '/pricing': { isr: 86400 },
+    '/open': { isr: 900 },
+    '/changelog': { isr: 86400 },
     // Homepage - cache 30 min
     '/': { isr: 1800 },
+    // Auth pages - no cache (dynamic)
+    '/login': { ssr: false },
+    '/account': { ssr: false },
+    '/auth/**': { ssr: false },
+
   },
 
   css: ['@/assets/css/main.css'],
 
   supabase: {
-    redirect: false
+    redirect: false,
+    serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY
   },
 
   googleFonts: {

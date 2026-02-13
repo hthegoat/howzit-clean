@@ -1,41 +1,42 @@
 import { serverSupabaseClient } from '#supabase/server'
+import type { SitemapUrlInput } from '#sitemap/types'
 
 export default defineSitemapEventHandler(async (event) => {
   const supabase = await serverSupabaseClient(event)
-  
+
   // Fetch spots with their most recent forecast timestamp
   const { data: spots } = await supabase
     .from('spots')
-    .select('slug, state, id')
+    .select('slug, state, id') as { data: { slug: string; state: string; id: string }[] | null }
 
   // Get the most recent forecast timestamp per spot (for real lastmod)
   const { data: latestForecasts } = await supabase
     .from('forecasts')
     .select('spot_id, fetched_at')
-    .order('fetched_at', { ascending: false })
+    .order('fetched_at', { ascending: false }) as { data: { spot_id: string; fetched_at: string }[] | null }
 
   // Build a map of spot_id -> latest fetched_at
-  const lastmodBySpot = {}
+  const lastmodBySpot: Record<string, string> = {}
   latestForecasts?.forEach(f => {
     if (!lastmodBySpot[f.spot_id] && f.fetched_at) {
       lastmodBySpot[f.spot_id] = f.fetched_at
     }
   })
-  
-  const urls = []
+
+  const urls: SitemapUrlInput[] = []
   const now = new Date().toISOString()
   // Fallback date for pages without dynamic data
   const staticDate = '2026-01-15T00:00:00Z'
-  
+
   // Track latest forecast across all spots (for index/state pages)
   let latestOverall = staticDate
-  
+
   // Add spot pages
   if (spots) {
     spots.forEach(spot => {
       const spotLastmod = lastmodBySpot[spot.id] || staticDate
       if (spotLastmod > latestOverall) latestOverall = spotLastmod
-      
+
       urls.push({
         loc: `/spots/${spot.slug}`,
         lastmod: spotLastmod,
@@ -43,20 +44,20 @@ export default defineSitemapEventHandler(async (event) => {
         priority: 0.8
       })
     })
-    
+
     // Add unique state pages — use latest forecast from any spot in that state
-    const stateSpots = {}
+    const stateSpots: Record<string, typeof spots> = {}
     spots.forEach(s => {
       if (!stateSpots[s.state]) stateSpots[s.state] = []
       stateSpots[s.state].push(s)
     })
-    
+
     Object.entries(stateSpots).forEach(([state, stateSpotList]) => {
       const stateLastmod = stateSpotList.reduce((latest, s) => {
         const ts = lastmodBySpot[s.id] || staticDate
         return ts > latest ? ts : latest
       }, staticDate)
-      
+
       urls.push({
         loc: `/spots/state/${state.toLowerCase().replace(/\s+/g, '-')}`,
         lastmod: stateLastmod,
@@ -65,7 +66,7 @@ export default defineSitemapEventHandler(async (event) => {
       })
     })
   }
-  
+
   // Add homepage
   urls.push({
     loc: '/',
@@ -73,7 +74,7 @@ export default defineSitemapEventHandler(async (event) => {
     changefreq: 'daily',
     priority: 1.0
   })
-  
+
   // Add spots index
   urls.push({
     loc: '/spots',
@@ -81,7 +82,7 @@ export default defineSitemapEventHandler(async (event) => {
     changefreq: 'hourly',
     priority: 0.9
   })
-  
+
   // Add blog posts — use static dates (update when you publish new posts)
   const blogPosts = [
     { slug: 'free-surf-report-app-no-ads', date: '2025-12-01T00:00:00Z' },
@@ -93,7 +94,7 @@ export default defineSitemapEventHandler(async (event) => {
     { slug: 'how-to-score-surf-noreasters-east-coast', date: '2026-01-10T00:00:00Z' },
     { slug: 'winter-storm-fern-surf-forecast-january-2026', date: '2026-01-20T00:00:00Z' }
   ]
-  
+
   blogPosts.forEach(post => {
     urls.push({
       loc: `/blog/${post.slug}`,
@@ -102,7 +103,7 @@ export default defineSitemapEventHandler(async (event) => {
       priority: 0.7
     })
   })
-  
+
   // Add blog index
   urls.push({
     loc: '/blog',
@@ -110,7 +111,7 @@ export default defineSitemapEventHandler(async (event) => {
     changefreq: 'weekly',
     priority: 0.6
   })
-  
+
   // Add static pages
   urls.push({
     loc: '/about',
@@ -118,20 +119,41 @@ export default defineSitemapEventHandler(async (event) => {
     changefreq: 'monthly',
     priority: 0.4
   })
-  
+
   urls.push({
     loc: '/how-we-rate',
     lastmod: staticDate,
     changefreq: 'monthly',
     priority: 0.5
   })
-  
+
   urls.push({
     loc: '/waitlist',
     lastmod: staticDate,
     changefreq: 'monthly',
     priority: 0.5
   })
-  
+
+  urls.push({
+    loc: '/pricing',
+    lastmod: now,
+    changefreq: 'monthly',
+    priority: 0.6
+  })
+
+  urls.push({
+    loc: '/open',
+    lastmod: now,
+    changefreq: 'daily',
+    priority: 0.5
+  })
+
+  urls.push({
+    loc: '/changelog',
+    lastmod: now,
+    changefreq: 'weekly',
+    priority: 0.5
+  })
+
   return urls
 })

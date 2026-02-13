@@ -12,6 +12,7 @@
           <div class="lg:col-span-2 space-y-4 sm:space-y-6 min-w-0">
             <SpotHero 
               :spot-name="spot.name"
+              :spot-id="spot.id"
               :state="spot.state"
               :region="spot.region"
               :buoy-id="spot.buoy_id"
@@ -34,6 +35,7 @@
               :forecasts="surflineForecasts"
               :beach-orientation="beachOrientation"
               :tides="surflineTides"
+              :is-pro-user="isProUser"
               @hover="graphHoverTime = $event"
               @hover-end="graphHoverTime = null"
             />
@@ -97,6 +99,7 @@ const supabase = useSupabaseClient()
 // Composables
 const { hourlyData: todayHourlyData, fetchHourlyForecast: fetchTodayHourly } = useHourlyForecast()
 const { calculateRating, scoreToStars, scoreToLabel, formatDirection } = useHowzitRating()
+const { isProUser } = useAuth()
 
 // Refs
 const graphHoverTime = ref(null)
@@ -113,9 +116,9 @@ const { data: ssrData } = await useAsyncData(`spot-full-${route.params.slug}`, a
   if (!spotData) return null
 
   const now = new Date()
-  const sixDaysOut = new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000)
+  const fourteenDaysOut = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
   const oneDayAgo = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000)
-  const eightDaysOut = new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000)
+  const sixteenDaysOut = new Date(now.getTime() + 16 * 24 * 60 * 60 * 1000)
 
   // 2. Fetch forecasts, tides, buoy, summary, nearby in parallel
   const [forecastRes, tideRes, buoyRes, summaryRes, nearbyRes] = await Promise.all([
@@ -125,7 +128,7 @@ const { data: ssrData } = await useAsyncData(`spot-full-${route.params.slug}`, a
       .select('*')
       .eq('spot_id', spotData.id)
       .gte('timestamp', now.toISOString())
-      .lte('timestamp', sixDaysOut.toISOString())
+      .lte('timestamp', fourteenDaysOut.toISOString())
       .order('timestamp', { ascending: true }),
     // Tides
     supabase
@@ -133,7 +136,7 @@ const { data: ssrData } = await useAsyncData(`spot-full-${route.params.slug}`, a
       .select('*')
       .eq('spot_id', spotData.id)
       .gte('timestamp', oneDayAgo.toISOString())
-      .lte('timestamp', eightDaysOut.toISOString())
+      .lte('timestamp', sixteenDaysOut.toISOString())
       .order('timestamp', { ascending: true }),
     // Buoy
     spotData.buoy_id

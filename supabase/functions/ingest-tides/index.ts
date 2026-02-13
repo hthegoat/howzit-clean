@@ -19,7 +19,7 @@ interface TidePrediction {
 
 async function fetchNOAATides(stationId: string) {
   const today = new Date();
-  const endDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const endDate = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
   
   const formatDate = (d: Date) => 
     `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;

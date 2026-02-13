@@ -1,7 +1,7 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseServiceRole } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
-  const supabase = await serverSupabaseClient(event)
+  const supabase = serverSupabaseServiceRole(event)
   
   // Get spot count and state list
   const { data: spots } = await supabase
@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
     .select('state')
   
   const spotCount = spots?.length || 0
-  const states = [...new Set(spots?.map(s => s.state).filter(Boolean))].sort()
+  const states = [...new Set((spots as any[])?.map(s => s.state).filter(Boolean))].sort()
 
   const content = `# Howzit Surf Forecasts
 # https://hwztsurf.com

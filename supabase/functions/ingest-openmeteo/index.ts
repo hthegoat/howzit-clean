@@ -106,7 +106,7 @@ async function fetchOpenMeteoMarine(lat: number, lng: number) {
       "tertiary_swell_wave_height", "tertiary_swell_wave_period", "tertiary_swell_wave_direction",
       "sea_surface_temperature", "ocean_current_velocity", "ocean_current_direction"
     ].join(","),
-    forecast_days: "7",
+    forecast_days: "14",
     timezone: "UTC"
   });
 
@@ -114,7 +114,7 @@ async function fetchOpenMeteoMarine(lat: number, lng: number) {
     latitude: lat.toString(),
     longitude: lng.toString(),
     hourly: "wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,cloud_cover",
-    forecast_days: "7",
+    forecast_days: "14",
     timezone: "UTC"
   });
 
@@ -139,6 +139,7 @@ async function fetchECMWF(lat: number, lng: number): Promise<{ data: any; error:
       longitude: lng.toString(),
       hourly: "wave_height,wave_period,wave_direction",
       models: "ecmwf_wam025",
+      forecast_days: "14",
       timezone: "UTC"
     });
 
@@ -286,6 +287,9 @@ Deno.serve(async (req) => {
           const heightBlend = blendForecasts(ww3Height, omHeight, ecHeight);
           const periodBlend = blendForecasts(ww3Period, omPeriod, ecPeriod);
           
+          // Count how many models contributed to this timestamp
+          const modelCount = [omHeight, ww3Height, ecHeight].filter(v => v != null && !isNaN(v)).length;
+          
           // For direction, use circular mean or just take from most confident height source
           let blendedDir = omDir;
           if (heightBlend.method.includes('WW3') && ww3Dir != null) {
@@ -341,6 +345,7 @@ Deno.serve(async (req) => {
             blended_wave_direction: blendedDir,
             blend_confidence: heightBlend.confidence,
             blend_spread: heightBlend.spread,
+            blend_model_count: modelCount,
             
             fetched_at: new Date().toISOString(),
           };
