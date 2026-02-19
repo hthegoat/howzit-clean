@@ -4,6 +4,9 @@ Allow: /
 # Block internal/auth pages from indexing
 Disallow: /confirm
 Disallow: /auth/
+Disallow: /login
+Disallow: /account
+Disallow: /admin
 
 # AI Agents - Welcome! We have markdown endpoints for you
 User-agent: GPTBot

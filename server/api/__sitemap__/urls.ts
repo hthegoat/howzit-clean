@@ -9,19 +9,23 @@ export default defineSitemapEventHandler(async (event) => {
     .from('spots')
     .select('slug, state, id') as { data: { slug: string; state: string; id: string }[] | null }
 
-  // Get the most recent forecast timestamp per spot (for real lastmod)
-  const { data: latestForecasts } = await supabase
-    .from('forecasts')
-    .select('spot_id, fetched_at')
-    .order('fetched_at', { ascending: false }) as { data: { spot_id: string; fetched_at: string }[] | null }
-
-  // Build a map of spot_id -> latest fetched_at
+  // Get the most recent forecast timestamp per spot using RPC or direct query
+  // Note: default Supabase limit is 1000 rows, so we query per-spot max timestamps
   const lastmodBySpot: Record<string, string> = {}
-  latestForecasts?.forEach(f => {
-    if (!lastmodBySpot[f.spot_id] && f.fetched_at) {
-      lastmodBySpot[f.spot_id] = f.fetched_at
+  
+  if (spots) {
+    // Batch: get latest fetched_at for all spots in one query
+    const { data: latestForecasts } = await supabase
+      .rpc('get_latest_forecast_timestamps') as { data: { spot_id: string; latest_fetched_at: string }[] | null }
+    
+    if (latestForecasts) {
+      latestForecasts.forEach(f => {
+        if (f.latest_fetched_at) {
+          lastmodBySpot[f.spot_id] = f.latest_fetched_at
+        }
+      })
     }
-  })
+  }
 
   const urls: SitemapUrlInput[] = []
   const now = new Date().toISOString()

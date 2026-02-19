@@ -33,6 +33,7 @@
       <div class="mt-8 pt-5 border-t-2 border-black text-center">
         <p class="font-black uppercase text-sm mb-1">Built By A Surfer, Not A Corporation</p>
         <p class="text-gray-400 text-xs">&copy; {{ new Date().getFullYear() }} Howzit · Indie, ad-free, and <NuxtLink to="/open" class="underline hover:text-black">open</NuxtLink>.</p>
+        <p class="text-gray-400 text-xs mt-1"><NuxtLink to="/privacy" class="underline hover:text-black">Privacy</NuxtLink> · <NuxtLink to="/terms" class="underline hover:text-black">Terms</NuxtLink></p>
       </div>
     </div>
   </footer>

@@ -179,11 +179,13 @@ const formatWind = (kmh) => {
 
 const siteUrl = 'https://hwztsurf.com'
 
+const spotCount = computed(() => spots.value?.length || 79)
+
 useHead({ 
-  title: 'East Coast Surf Reports & Forecasts - 76 Spots | Howzit',
+  title: computed(() => `East Coast Surf Reports & Forecasts - ${spotCount.value} Spots | Howzit`),
   meta: [
-    { name: 'description', content: 'Live surf reports and forecasts for 76 East Coast spots. Real-time wave heights, wind, tides, and conditions for New Jersey, New York, North Carolina, and Florida beaches.' },
-    { property: 'og:title', content: 'East Coast Surf Reports & Forecasts - 76 Spots | Howzit' },
+    { name: 'description', content: computed(() => `Live surf reports and forecasts for ${spotCount.value} East Coast spots. Real-time wave heights, wind, tides, and conditions for New Jersey, New York, North Carolina, and Florida beaches.`) },
+    { property: 'og:title', content: computed(() => `East Coast Surf Reports & Forecasts - ${spotCount.value} Spots | Howzit`) },
     { property: 'og:description', content: 'Live surf reports and forecasts for East Coast spots. Check wave heights, wind, tides, and conditions.' },
     { property: 'og:type', content: 'website' },
     { property: 'og:url', content: `${siteUrl}/spots` },
