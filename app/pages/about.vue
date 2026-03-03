@@ -50,7 +50,7 @@
           <BrutalCard class="p-5">
             <h3 class="font-bold text-lg mb-2">🚫 Zero Ads, Zero Paywalls</h3>
             <p class="text-gray-600 text-sm">
-              No pop-ups. No "premium" tier for basic features. The core forecast is free, forever.
+              No pop-ups. No ads. No paywall. Every feature is free, forever. No catch.
             </p>
           </BrutalCard>
           
@@ -133,7 +133,7 @@
             </div>
             <div>
               <h4 class="font-bold">Florida</h4>
-              <p class="text-sm text-gray-500">Space Coast to Miami</p>
+              <p class="text-sm text-gray-500">Jacksonville to Miami</p>
             </div>
           </div>
           <p class="text-gray-600 mt-4 text-sm">

@@ -132,20 +132,6 @@ export default defineSitemapEventHandler(async (event) => {
   })
 
   urls.push({
-    loc: '/waitlist',
-    lastmod: staticDate,
-    changefreq: 'monthly',
-    priority: 0.5
-  })
-
-  urls.push({
-    loc: '/pricing',
-    lastmod: now,
-    changefreq: 'monthly',
-    priority: 0.6
-  })
-
-  urls.push({
     loc: '/open',
     lastmod: now,
     changefreq: 'daily',

@@ -148,6 +148,12 @@ const stateMap = {
   'ga': { name: 'Georgia', abbrev: 'GA' },
   'florida': { name: 'Florida', abbrev: 'FL' },
   'fl': { name: 'Florida', abbrev: 'FL' },
+  'california': { name: 'California', abbrev: 'CA' },
+  'ca': { name: 'California', abbrev: 'CA' },
+  'oregon': { name: 'Oregon', abbrev: 'OR' },
+  'or': { name: 'Oregon', abbrev: 'OR' },
+  'hawaii': { name: 'Hawaii', abbrev: 'HI' },
+  'hi': { name: 'Hawaii', abbrev: 'HI' },
 }
 
 const stateSlug = computed(() => route.params.state?.toLowerCase())
@@ -211,6 +217,18 @@ const stateDescriptions = {
   'Florida': {
     short: 'Florida surf reports from Jacksonville to Miami. Real-time conditions for Sebastian Inlet, Cocoa Beach, New Smyrna and more.',
     long: `Florida offers year-round surfing along its Atlantic coast, with the Space Coast and Volusia County regions being the most consistent. Sebastian Inlet is considered one of the best waves on the East Coast when conditions align. New Smyrna Beach sees more shark encounters than anywhere else but remains hugely popular. Hurricane season (June-November) brings the biggest swells, while winter cold fronts push rideable waves to the coast. The Gulf Coast gets occasional surf during tropical systems.`
+  },
+  'California': {
+    short: 'California surf reports from San Diego to Humboldt. Live conditions for Malibu, Trestles, Huntington, Santa Cruz, and more.',
+    long: `California is the epicenter of American surfing, with over 800 miles of coastline delivering world-class waves year-round. Southern California spots like Trestles, Huntington, and Malibu offer consistent summer south swells, while Northern California's Mavericks and Ocean Beach handle powerful winter north swells. The Central Coast around Santa Cruz and Pismo Beach bridges both swell windows. Water temps range from boardshort-warm in San Diego to thick-wetsuit-cold north of Point Conception.`
+  },
+  'Oregon': {
+    short: 'Oregon coast surf reports. Live conditions for Seaside, Short Sands, Pacific City, and the southern coast.',
+    long: `Oregon offers powerful, uncrowded surf along its rugged Pacific coastline. Short Sands (Oswald West State Park) is the most iconic spot, tucked in a cove surrounded by old-growth forest. Seaside and Indian Beach pick up consistent north Pacific swells, while the southern coast around Gold Beach and Brookings catches both north and south energy. Winter delivers the biggest and most consistent surf, but the water is cold year-round and a thick wetsuit is mandatory.`
+  },
+  'Hawaii': {
+    short: 'Hawaii surf reports for Oahu, Maui, Kauai, and Big Island. Live conditions for Pipeline, Waikiki, Sunset Beach, and more.',
+    long: `Hawaii is the birthplace of surfing and home to some of the most famous waves on Earth. Oahu's North Shore — Pipeline, Sunset Beach, Waimea Bay — receives massive north Pacific swells from October through March. The south shores light up with summer swells, making Waikiki and Ala Moana popular year-round. Maui's Honolua Bay and Pe'ahi (Jaws) offer world-class conditions, while Kauai and the Big Island provide less-crowded alternatives with equally powerful surf.`
   }
 }
 
@@ -286,7 +304,8 @@ const getSpotScore = (spot) => {
     windSpeed: f.wind_speed,
     windDirection: f.wind_direction,
     windGust: f.wind_gust,
-    beachOrientation: spot.orientation || 90
+    beachOrientation: spot.orientation || 90,
+    surfRegion: spot.surf_region || 'mid_atlantic'
   })
 }
 

@@ -135,11 +135,14 @@ const props = defineProps({
   sunrise: { type: String, default: null },
   sunset: { type: String, default: null },
   beachOrientation: { type: Number, default: 90 },
-  hourlyData: { type: Array, default: () => [] }
+  surfRegion: { type: String, default: 'mid_atlantic' },
+  hourlyData: { type: Array, default: () => [] },
+
 })
 
 const { isLoggedIn } = useAuth()
 const { isFollowing, toggleFollow } = useMySpots()
+const { formatDirection } = useHowzitRating()
 
 const following = computed(() => props.spotId ? isFollowing(props.spotId) : false)
 
@@ -158,65 +161,48 @@ const ratingVariant = computed(() => {
   const label = props.ratingLabel?.toLowerCase() || ''
   if (label === 'epic') return 'epic'
   if (label === 'good') return 'good'
-  if (label.includes('fair')) return 'fair'  // Fair or Fair+
-  if (label.includes('poor')) return 'poor'  // Poor or Poor+
+  if (label === 'junky') return 'junky'
   return 'flat'
 })
 
 const accentColor = computed(() => {
   const label = props.ratingLabel?.toLowerCase() || ''
-  if (label === 'epic' || label === 'good') return '#10b981'  // emerald-500
-  if (label.includes('fair')) return '#3b82f6'  // blue-500
-  if (label.includes('poor')) return '#fb7185'  // rose-400
-  return '#d1d5db'  // gray-300
+  if (label === 'epic') return '#10b981'
+  if (label === 'good') return '#3b82f6'
+  if (label === 'junky') return '#fb7185'
+  return '#d1d5db'
 })
 
-const { formatDirection } = useHowzitRating()
+
 
 const formattedTimestamp = computed(() => {
   if (!props.timestamp) return '--'
   return new Date(props.timestamp).toLocaleString()
 })
 
-// Simplified wind quality - 3 categories: Offshore, Sideshore, Onshore
+// Simplified wind quality
 const getSimpleWindQuality = (windDir) => {
   if (windDir === null || windDir === undefined) return 'unknown'
-  
   const offshoreDirection = (props.beachOrientation + 180) % 360
   let diff = Math.abs(windDir - offshoreDirection)
   if (diff > 180) diff = 360 - diff
-  
-  if (diff <= 60) return 'offshore'   // Offshore or cross-off
-  if (diff <= 120) return 'sideshore' // Cross or cross-on
+  if (diff <= 60) return 'offshore'
+  if (diff <= 120) return 'sideshore'
   return 'onshore'
 }
 
-// Wind quality based on beach orientation
-const windQuality = computed(() => {
-  return getSimpleWindQuality(props.current?.wind?.degrees)
-})
+const windQuality = computed(() => getSimpleWindQuality(props.current?.wind?.degrees))
 
 const windQualityLabel = computed(() => {
-  const labels = {
-    'offshore': 'Offshore',
-    'sideshore': 'Sideshore',
-    'onshore': 'Onshore',
-    'unknown': ''
-  }
+  const labels = { 'offshore': 'Offshore', 'sideshore': 'Sideshore', 'onshore': 'Onshore', 'unknown': '' }
   return labels[windQuality.value]
 })
 
 const windQualityColor = computed(() => {
-  const colors = {
-    'offshore': 'text-green-600',
-    'sideshore': 'text-yellow-600',
-    'onshore': 'text-red-500',
-    'unknown': 'text-gray-500'
-  }
+  const colors = { 'offshore': 'text-green-600', 'sideshore': 'text-yellow-600', 'onshore': 'text-red-500', 'unknown': 'text-gray-500' }
   return colors[windQuality.value]
 })
 
-// Wetsuit recommendation based on water temp
 const wetsuit = computed(() => {
   const temp = props.current?.temp
   if (!temp || temp === '--') return ''

@@ -66,6 +66,15 @@ img {
   --color-flat: #f87171;
 }
 
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Typography */
 .text-section {
   font-size: 0.75rem;

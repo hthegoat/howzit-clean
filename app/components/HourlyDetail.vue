@@ -11,20 +11,20 @@
       <!-- Legend -->
       <div class="flex justify-center gap-4 mt-3 text-xs">
         <div class="flex items-center gap-1.5">
-          <span class="w-3 h-3 rounded-sm bg-green-500"></span>
-          <span>Good+</span>
+          <span class="w-3 h-3 rounded-sm" style="background-color: #10b981"></span>
+          <span>Epic</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <span class="w-3 h-3 rounded-sm bg-lime-400"></span>
-          <span>Fair+</span>
+          <span class="w-3 h-3 rounded-sm" style="background-color: #3b82f6"></span>
+          <span>Good</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <span class="w-3 h-3 rounded-sm bg-yellow-400"></span>
-          <span>Fair</span>
+          <span class="w-3 h-3 rounded-sm" style="background-color: #fb7185"></span>
+          <span>Junky</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <span class="w-3 h-3 rounded-sm bg-orange-400"></span>
-          <span>Poor</span>
+          <span class="w-3 h-3 rounded-sm" style="background-color: #d1d5db"></span>
+          <span>Flat</span>
         </div>
       </div>
     </div>
@@ -66,7 +66,8 @@ const { calculateRating, scoreToColor } = useHowzitRating()
 const props = defineProps({
   day: { type: Object, default: null },
   hourlyData: { type: Array, default: () => [] },
-  beachOrientation: { type: Number, default: 90 }
+  beachOrientation: { type: Number, default: 90 },
+  surfRegion: { type: String, default: 'mid_atlantic' }
 })
 
 const chartRef = ref(null)
@@ -97,7 +98,8 @@ const renderChart = () => {
       wavePeriod: wavePd,
       windSpeed: h.windSpeed,
       windDirection: h.windDirection,
-      beachOrientation: props.beachOrientation
+      beachOrientation: props.beachOrientation,
+      surfRegion: props.surfRegion
     })
     return scoreToColor(score)
   })
@@ -138,7 +140,8 @@ const renderChart = () => {
                 wavePeriod: wavePd,
                 windSpeed: hour.windSpeed,
                 windDirection: hour.windDirection,
-                beachOrientation: props.beachOrientation
+                beachOrientation: props.beachOrientation,
+                surfRegion: props.surfRegion
               })
               const { scoreToLabel } = useHowzitRating()
               return `${formatHour(hour.hour)} - ${scoreToLabel(score)}`

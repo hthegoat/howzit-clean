@@ -4,14 +4,14 @@
       <div class="px-4 py-3 border-b-2 border-black bg-gray-50">
         <h2 class="font-bold uppercase text-sm text-gray-600">Spot Map</h2>
       </div>
-      <div ref="mapContainer" class="h-[300px] sm:h-[400px] w-full"></div>
+      <div ref="mapContainer" :class="heightClass" class="w-full"></div>
     </div>
     <template #fallback>
       <div class="bg-white border-2 border-black rounded-lg overflow-hidden">
         <div class="px-4 py-3 border-b-2 border-black bg-gray-50">
           <h2 class="font-bold uppercase text-sm text-gray-600">Spot Map</h2>
         </div>
-        <div class="h-[300px] sm:h-[400px] w-full flex items-center justify-center bg-gray-100">
+        <div :class="heightClass" class="w-full flex items-center justify-center bg-gray-100">
           <span class="text-gray-400">Loading map...</span>
         </div>
       </div>
@@ -31,8 +31,22 @@ const props = defineProps({
   },
   getSpotLabel: {
     type: Function,
-    default: () => 'Fair'
+    default: () => 'Good'
+  },
+  height: {
+    type: String,
+    default: 'default' // 'default' | 'tall'
+  },
+  selectedRegion: {
+    type: String,
+    default: null
   }
+})
+
+const heightClass = computed(() => {
+  return props.height === 'tall' 
+    ? 'h-[400px] sm:h-[600px]' 
+    : 'h-[300px] sm:h-[400px]'
 })
 
 const mapContainer = ref(null)
@@ -117,24 +131,33 @@ const updateMarkers = () => {
       popupAnchor: [0, -12]
     })
 
+    // Build wave info for popup
+    const waveHt = spot.forecast?.blended_wave_height ?? spot.forecast?.wave_height
+    const waveFt = waveHt ? (waveHt * 3.281) : null
+    const waveStr = waveFt ? `${Math.max(1, Math.round(waveFt) - 1)}-${Math.round(waveFt) + 1}ft` : '--'
+    const periodStr = spot.forecast ? `${Math.round(spot.forecast.swell_wave_period || spot.forecast.wave_period || 0)}s` : ''
+
     const marker = L.marker([spot.latitude, spot.longitude], { icon })
       .addTo(map)
       .bindPopup(`
-        <div style="font-family: system-ui; min-width: 150px;">
-          <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">${spot.name}</div>
-          <div style="font-size: 12px; color: #666; margin-bottom: 8px;">${spot.region || ''}</div>
-          <div style="
-            display: inline-block;
-            background-color: ${color};
-            color: ${isLightColor(color) ? '#000' : '#fff'};
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-          ">${label}</div>
+        <div style="font-family: system-ui; min-width: 160px;">
+          <div style="font-weight: bold; font-size: 14px; margin-bottom: 2px;">${spot.name}</div>
+          <div style="font-size: 12px; color: #666; margin-bottom: 6px;">${spot.region || ''}</div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span style="
+              display: inline-block;
+              background-color: ${color};
+              color: ${isLightColor(color) ? '#000' : '#fff'};
+              padding: 2px 8px;
+              border-radius: 4px;
+              font-size: 11px;
+              font-weight: bold;
+            ">${label}</span>
+            <span style="font-size: 14px; font-weight: 900; font-family: monospace;">${waveStr}</span>
+            ${periodStr ? `<span style="font-size: 11px; color: #666;">${periodStr}</span>` : ''}
+          </div>
           <a href="/spots/${spot.slug}" style="
             display: block;
-            margin-top: 8px;
             color: #000;
             font-size: 12px;
             font-weight: bold;
@@ -150,6 +173,22 @@ const updateMarkers = () => {
   })
 }
 
+const fitBoundsToSpots = () => {
+  if (!map || !L || !props.spots.length) return
+  
+  const validSpots = props.spots.filter(s => s.latitude && s.longitude)
+  if (!validSpots.length) return
+  
+  const lats = validSpots.map(s => s.latitude)
+  const lngs = validSpots.map(s => s.longitude)
+  const bounds = L.latLngBounds(
+    [Math.min(...lats), Math.min(...lngs)],
+    [Math.max(...lats), Math.max(...lngs)]
+  )
+  
+  map.fitBounds(bounds, { padding: [30, 30], animate: true, duration: 0.5 })
+}
+
 const isLightColor = (color) => {
   if (!color) return false
   const hex = color.replace('#', '')
@@ -161,7 +200,13 @@ const isLightColor = (color) => {
 }
 
 onMounted(() => {
-  setTimeout(initMap, 200)
+  setTimeout(async () => {
+    await initMap()
+    // Invalidate size after map renders (fixes container sizing on toggle)
+    if (map) {
+      setTimeout(() => map.invalidateSize(), 100)
+    }
+  }, 200)
 })
 
 onUnmounted(() => {
@@ -171,11 +216,24 @@ onUnmounted(() => {
   }
 })
 
+// Watch for spot changes (filtering) - update markers and re-fit bounds
 watch(() => props.spots, () => {
   if (map && L) {
     updateMarkers()
+    fitBoundsToSpots()
   }
 }, { deep: true })
+
+// Watch for region changes specifically to ensure map recenters
+watch(() => props.selectedRegion, () => {
+  if (map && L) {
+    // Small delay to let the spots filter apply first
+    setTimeout(() => {
+      updateMarkers()
+      fitBoundsToSpots()
+    }, 50)
+  }
+})
 </script>
 
 <style>

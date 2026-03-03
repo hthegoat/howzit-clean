@@ -8,7 +8,7 @@
             <li><NuxtLink to="/#features" class="text-gray-500 hover:text-black">Features</NuxtLink></li>
             <li><NuxtLink to="/how-we-rate" class="text-gray-500 hover:text-black">How We Rate</NuxtLink></li>
             <li><NuxtLink to="/spots" class="text-gray-500 hover:text-black">All Spots</NuxtLink></li>
-            <li><NuxtLink to="/pricing" class="text-gray-500 hover:text-black">Pricing</NuxtLink></li>
+            <li><NuxtLink to="/blog" class="text-gray-500 hover:text-black">Blog</NuxtLink></li>
           </ul>
         </div>
         

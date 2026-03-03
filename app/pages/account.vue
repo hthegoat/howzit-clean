@@ -72,36 +72,13 @@
               <span class="text-sm font-mono">{{ userEmail }}</span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-xs font-bold uppercase text-gray-400">Plan</span>
-              <span class="text-sm font-bold" :class="tierColor">{{ tierLabel }}</span>
-            </div>
-            <div class="flex justify-between items-center">
               <span class="text-xs font-bold uppercase text-gray-400">Member Since</span>
               <span class="text-sm font-mono">{{ memberSince }}</span>
             </div>
           </div>
         </div>
 
-        <!-- Upgrade CTA -->
-        <div v-if="!isProUser" class="bg-white border-[3px] border-black rounded-[6px] p-5">
-          <p class="font-black mb-1">Unlock Extended Forecasts</p>
-          <p class="text-sm text-gray-500 mb-4">Full 7-day forecasts with multi-model confidence scoring.</p>
-          <NuxtLink 
-            to="/pricing"
-            class="inline-block bg-yellow-400 text-black font-bold text-sm px-5 py-2.5 border-2 border-black rounded-[6px] hover:bg-yellow-300 transition-colors"
-          >
-            UPGRADE TO PRO
-          </NuxtLink>
-        </div>
 
-        <!-- Pro badge -->
-        <div v-else class="bg-green-50 border-2 border-green-200 rounded-[6px] p-5 flex items-center gap-3">
-          <span class="text-2xl">🤙</span>
-          <div>
-            <p class="font-black text-sm">{{ isFoundingMember ? 'Founding Member' : 'Pro Member' }}</p>
-            <p class="text-xs text-gray-500">Full access to all features.</p>
-          </div>
-        </div>
 
         <!-- Sign Out -->
         <button

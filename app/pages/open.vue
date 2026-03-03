@@ -16,50 +16,14 @@
 
       <div v-else-if="stats">
 
-        <!-- Early Access -->
+        <!-- Community -->
         <section class="mb-12">
-          <h2 class="text-2xl font-black uppercase mb-6 pb-2 border-b-2 border-black">🏄 Early Access</h2>
+          <h2 class="text-2xl font-black uppercase mb-6 pb-2 border-b-2 border-black">🏄 Community</h2>
           
-          <BrutalCard accent-color="#facc15" class="p-6">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
-              <div>
-                <p class="text-card-title">$10/year — first 1,000 members only</p>
-                <p class="text-meta">Lock in early access pricing before it goes up.</p>
-              </div>
-              <div class="text-left sm:text-right">
-                <span class="text-4xl sm:text-5xl font-black text-yellow-500">{{ stats.proSlotsRemaining }}</span>
-                <span class="text-section ml-1">slots left</span>
-              </div>
-            </div>
-            <div class="w-full bg-gray-100 rounded-full h-4 border-2 border-black overflow-hidden">
-              <div 
-                class="bg-yellow-400 h-full rounded-full transition-all duration-500"
-                :style="{ width: Math.max(1, ((1000 - stats.proSlotsRemaining) / 1000) * 100) + '%' }"
-              ></div>
-            </div>
-            <div class="flex justify-between text-meta mt-2">
-              <span>{{ 1000 - stats.proSlotsRemaining }} claimed</span>
-              <span>1,000 total</span>
-            </div>
-          </BrutalCard>
-        </section>
-
-        <!-- Members -->
-        <section class="mb-12">
-          <h2 class="text-2xl font-black uppercase mb-6 pb-2 border-b-2 border-black">💰 Members</h2>
-          
-          <div class="grid grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 gap-4">
             <BrutalCard class="p-5 text-center">
               <p class="text-3xl sm:text-4xl font-black">{{ stats.users }}</p>
-              <p class="text-section mt-2">Users</p>
-            </BrutalCard>
-            <BrutalCard class="p-5 text-center">
-              <p class="text-3xl sm:text-4xl font-black">{{ stats.proMembers }}</p>
-              <p class="text-section mt-2">Pro</p>
-            </BrutalCard>
-            <BrutalCard class="p-5 text-center">
-              <p class="text-3xl sm:text-4xl font-black">{{ stats.foundingMembers }}</p>
-              <p class="text-section mt-2">Founding</p>
+              <p class="text-section mt-2">Registered Users</p>
             </BrutalCard>
           </div>
         </section>
@@ -140,10 +104,10 @@
               honest ratings, and a dude who got tired of guessing if Surfline was right.
             </p>
             <NuxtLink 
-              to="/pricing" 
+              to="/spots" 
               class="inline-block bg-yellow-400 text-black font-bold px-8 py-3 text-sm rounded-lg border-2 border-black hover:bg-yellow-300 transition-colors uppercase"
             >
-              Support the Project — $10/year
+              Check the Forecast
             </NuxtLink>
           </div>
         </section>

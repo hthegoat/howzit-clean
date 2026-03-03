@@ -16,9 +16,8 @@ const props = defineProps({
 
 const colorMap = {
   epic: '#10b981',
-  good: '#10b981',
-  fair: '#3b82f6',
-  poor: '#fb7185',
+  good: '#3b82f6',
+  junky: '#fb7185',
   flat: '#d1d5db',
   default: '#ffffff',
 }

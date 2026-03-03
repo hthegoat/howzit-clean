@@ -39,7 +39,7 @@ export default defineNuxtConfig({
     '/about': { isr: 86400 },
     '/how-we-rate': { isr: 86400 },
     '/waitlist': { isr: 86400 },
-    '/pricing': { isr: 86400 },
+    '/pricing': { redirect: { to: '/spots', statusCode: 301 } },
     '/open': { isr: 900 },
     '/changelog': { isr: 86400 },
     // Homepage - cache 30 min
@@ -86,7 +86,17 @@ export default defineNuxtConfig({
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { name: 'description', content: 'Real-time surf reports. No ads. No bloat. No BS.' },
-        { name: 'theme-color', content: '#FACC15' }
+        { name: 'theme-color', content: '#FACC15' },
+        // Open Graph defaults (overridden per-page)
+        { property: 'og:site_name', content: 'Howzit' },
+        { property: 'og:image', content: 'https://hwztsurf.com/images/og-default.png' },
+        { property: 'og:image:width', content: '1200' },
+        { property: 'og:image:height', content: '630' },
+        { property: 'og:image:type', content: 'image/png' },
+        // Twitter Card
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:image', content: 'https://hwztsurf.com/images/og-default.png' },
+        { name: 'twitter:site', content: '@howzitsurf' },
       ],
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },

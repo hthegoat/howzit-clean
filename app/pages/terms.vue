@@ -31,7 +31,7 @@
         <div class="bg-white border-2 border-black rounded-lg p-6 text-gray-700 text-sm space-y-3">
           <p>
             Howzit provides surf forecasts, wave data, tide information, and related content for surfing 
-            locations along the East Coast of the United States. Our forecasts are generated from publicly 
+            locations across the United States. Our forecasts are generated from publicly 
             available data sources including NOAA, Open-Meteo, ECMWF, and WaveWatch III.
           </p>
           <p>
@@ -77,27 +77,6 @@
           <p>
             You must provide accurate information when creating an account. We reserve the right to suspend 
             or terminate accounts that violate these terms.
-          </p>
-        </div>
-      </section>
-
-      <!-- Payments -->
-      <section class="mb-10">
-        <h2 class="text-2xl font-black uppercase mb-6 pb-2 border-b-2 border-black">Payments & Memberships</h2>
-        
-        <div class="bg-white border-2 border-black rounded-lg p-6 text-gray-700 text-sm space-y-3">
-          <p>
-            The core Howzit forecast is free. Optional premium features or memberships (like founding member 
-            lifetime access) may be offered at various price points.
-          </p>
-          <p>
-            All payments are processed through Stripe. Founding member lifetime passes are one-time payments 
-            that grant access for the lifetime of the service. Refund requests will be considered on a 
-            case-by-case basis within 30 days of purchase.
-          </p>
-          <p>
-            We reserve the right to change pricing for future offerings, but we will honor the terms of any 
-            existing purchases.
           </p>
         </div>
       </section>

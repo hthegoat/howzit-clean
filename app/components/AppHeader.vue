@@ -2,7 +2,7 @@
   <div>
     <!-- Announcement Bar -->
     <div class="bg-black text-white text-center py-2 sm:py-3 text-xs sm:text-sm font-medium tracking-wide">
-      🏄 EXTENDED 14-DAY FORECASTS NOW AVAILABLE — <NuxtLink to="/login" class="underline hover:text-yellow-400">SIGN UP FREE</NuxtLink>
+      🏄 137 SPOTS. 7-DAY FORECASTS. 100% FREE — <NuxtLink to="/spots" class="underline hover:text-yellow-400">EXPLORE NOW</NuxtLink>
     </div>
 
     <!-- Navigation -->
@@ -50,19 +50,7 @@
                 >
                   <div class="px-4 py-3 border-b-2 border-gray-200">
                     <p class="text-sm font-bold truncate">{{ user?.email }}</p>
-                    <p class="text-xs text-gray-500 uppercase font-bold mt-1">
-                      <span v-if="isFoundingMember" class="text-yellow-600">Founding Member</span>
-                      <span v-else-if="isProUser" class="text-green-600">Pro</span>
-                      <span v-else>Free Plan</span>
-                    </p>
                   </div>
-                  <button
-                    v-if="!isProUser"
-                    @click="navigateTo('/pricing'); showDropdown = false"
-                    class="w-full text-left px-4 py-2 text-sm font-bold text-yellow-600 hover:bg-yellow-50 transition-colors"
-                  >
-                    Upgrade to Pro
-                  </button>
                   <button
                     @click="handleSignOut"
                     class="w-full text-left px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
@@ -117,16 +105,7 @@
             <div class="border-t border-gray-200 pt-2 mt-2">
               <p class="text-xs text-gray-500 uppercase font-bold mb-1">
                 {{ user?.email }}
-                <span v-if="isFoundingMember" class="text-yellow-600 ml-1">· Founding Member</span>
-                <span v-else-if="isProUser" class="text-green-600 ml-1">· Pro</span>
               </p>
-              <button
-                v-if="!isProUser"
-                @click="navigateTo('/pricing'); mobileMenuOpen = false"
-                class="block py-2 text-yellow-600 hover:text-yellow-700 font-bold"
-              >
-                Upgrade to Pro
-              </button>
               <button
                 @click="handleSignOut"
                 class="block py-2 text-gray-600 hover:text-black font-medium"
@@ -153,7 +132,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 
-const { user, isLoggedIn, isProUser, isFoundingMember, signOut } = useAuth()
+const { user, isLoggedIn, signOut } = useAuth()
 
 const mobileMenuOpen = ref(false)
 const showDropdown = ref(false)

@@ -25,7 +25,9 @@
               :sunrise="sunTimes?.sunrise"
               :sunset="sunTimes?.sunset"
               :beach-orientation="beachOrientation"
+              :surf-region="surfRegion"
               :hourly-data="todayHourlyData"
+
               @feedback="handleFeedback"
             />
 
@@ -34,8 +36,8 @@
               v-if="surflineForecasts.length"
               :forecasts="surflineForecasts"
               :beach-orientation="beachOrientation"
+              :surf-region="surfRegion"
               :tides="surflineTides"
-              :is-pro-user="isProUser"
               @hover="graphHoverTime = $event"
               @hover-end="graphHoverTime = null"
             />
@@ -53,6 +55,7 @@
               :hourly-data="todayHourlyData"
               :tides="surflineTides"
               :beach-orientation="beachOrientation"
+              :surf-region="surfRegion"
             />
 
             <SpotHistory :spot="spot" />
@@ -80,6 +83,10 @@
             <WeekOutlook :summary="spotSummary" />
             <SpotInfoCard :info="spotInfo" />
             <Hazards :hazards="hazards" />
+            <BetterConditions
+              :spots="betterSpots"
+              :current-label="ratingLabel"
+            />
             <NearbySpots :spots="nearbySpots" :current-slug="spot.slug" />
           </div>
         </div>
@@ -99,7 +106,7 @@ const supabase = useSupabaseClient()
 // Composables
 const { hourlyData: todayHourlyData, fetchHourlyForecast: fetchTodayHourly } = useHourlyForecast()
 const { calculateRating, scoreToStars, scoreToLabel, formatDirection } = useHowzitRating()
-const { isProUser } = useAuth()
+const { getBetterConditions } = useWorthTheDrive()
 
 // Refs
 const graphHoverTime = ref(null)
@@ -121,7 +128,7 @@ const { data: ssrData } = await useAsyncData(`spot-full-${route.params.slug}`, a
   const sixteenDaysOut = new Date(now.getTime() + 16 * 24 * 60 * 60 * 1000)
 
   // 2. Fetch forecasts, tides, buoy, summary, nearby in parallel
-  const [forecastRes, tideRes, buoyRes, summaryRes, nearbyRes] = await Promise.all([
+  const [forecastRes, tideRes, buoyRes, summaryRes, nearbyRes, allSpotsRes] = await Promise.all([
     // Forecasts
     supabase
       .from('forecasts')
@@ -162,7 +169,9 @@ const { data: ssrData } = await useAsyncData(`spot-full-${route.params.slug}`, a
       .select('name, slug')
       .eq('state', spotData.state)
       .neq('slug', spotData.slug)
-      .limit(4)
+      .limit(4),
+    // Better Conditions Nearby (region-scoped)
+    supabase.rpc('get_better_conditions_nearby', { p_spot_id: spotData.id })
   ])
 
   return {
@@ -171,7 +180,8 @@ const { data: ssrData } = await useAsyncData(`spot-full-${route.params.slug}`, a
     tides: tideRes.data || [],
     buoy: buoyRes.data || null,
     summary: summaryRes.data || null,
-    nearby: (nearbyRes.data || []).map(s => ({ name: s.name, slug: s.slug, distance: 'Nearby' }))
+    nearby: (nearbyRes.data || []).map(s => ({ name: s.name, slug: s.slug, distance: 'Nearby' })),
+    betterNearby: allSpotsRes.data || []
   }
 })
 
@@ -185,6 +195,7 @@ const nearbySpots = ref(ssrData.value?.nearby || [])
 
 // Beach orientation (default 90 = east facing)
 const beachOrientation = computed(() => spot.value?.orientation || 90)
+const surfRegion = computed(() => spot.value?.surf_region || 'mid_atlantic')
 
 // Feedback handler
 const handleFeedback = async (accurate) => {
@@ -302,7 +313,8 @@ const currentRatingScore = computed(() => {
   
   // Build rating params - prefer buoy for waves, use forecast for wind if buoy wind unavailable
   const params = {
-    beachOrientation: beachOrientation.value
+    beachOrientation: beachOrientation.value,
+    surfRegion: surfRegion.value
   }
   
   if (hasBuoyWaves) {
@@ -351,6 +363,24 @@ const currentRatingScore = computed(() => {
 
 const currentRating = computed(() => scoreToStars(currentRatingScore.value))
 const ratingLabel = computed(() => scoreToLabel(currentRatingScore.value))
+
+// Better Conditions Nearby — pre-scored and region-scoped from DB
+const betterSpots = computed(() => {
+  const nearby = ssrData.value?.betterNearby || []
+  if (!spot.value || !nearby.length) return []
+
+  const { haversineDistance } = useWorthTheDrive()
+  const { scoreToLabel } = useHowzitRating()
+
+  return nearby.map(s => ({
+    ...s,
+    distance: haversineDistance(
+      spot.value.latitude, spot.value.longitude,
+      s.latitude, s.longitude
+    ),
+    label: scoreToLabel(s.condition_score)
+  }))
+})
 
 const spotInfo = computed(() => ({
   skill_level: spot.value?.skill_level || 'All Levels',

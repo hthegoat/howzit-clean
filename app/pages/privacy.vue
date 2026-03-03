@@ -55,14 +55,7 @@
             </p>
           </div>
 
-          <div class="bg-white border-2 border-black rounded-lg p-6">
-            <h3 class="font-bold text-lg mb-3">Payment Information</h3>
-            <p class="text-gray-700 text-sm">
-              If you purchase a founding membership or premium features, payments are processed through Stripe. 
-              We never see or store your full credit card number. Stripe handles all payment data under their own 
-              <a href="https://stripe.com/privacy" target="_blank" class="underline font-medium">privacy policy</a>.
-            </p>
-          </div>
+
         </div>
       </section>
 
@@ -83,7 +76,7 @@
         <h2 class="text-2xl font-black uppercase mb-6 pb-2 border-b-2 border-black">How We Use Your Data</h2>
         
         <div class="bg-white border-2 border-black rounded-lg p-6 text-gray-700 space-y-3 text-sm">
-          <p><strong>To provide the service:</strong> Delivering forecasts, managing your account, and processing payments.</p>
+          <p><strong>To provide the service:</strong> Delivering forecasts and managing your account.</p>
           <p><strong>To improve Howzit:</strong> Understanding which features are used helps us build a better product.</p>
           <p><strong>To communicate with you:</strong> Sending product updates, responding to support requests, and notifying you about changes to the service.</p>
         </div>
@@ -96,7 +89,6 @@
         <div class="bg-white border-2 border-black rounded-lg p-6 text-gray-700 text-sm space-y-3">
           <p>Howzit relies on the following third-party services, each with their own privacy policies:</p>
           <p><strong>Supabase</strong> — Database and authentication (<a href="https://supabase.com/privacy" target="_blank" class="underline">privacy policy</a>)</p>
-          <p><strong>Stripe</strong> — Payment processing (<a href="https://stripe.com/privacy" target="_blank" class="underline">privacy policy</a>)</p>
           <p><strong>Vercel</strong> — Hosting and deployment (<a href="https://vercel.com/legal/privacy-policy" target="_blank" class="underline">privacy policy</a>)</p>
           <p>Our forecast data comes from public sources (NOAA, Open-Meteo, ECMWF) and does not involve any user data.</p>
         </div>

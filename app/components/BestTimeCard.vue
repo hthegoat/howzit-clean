@@ -17,7 +17,8 @@ import { computed } from 'vue'
 const props = defineProps({
   hourlyData: { type: Array, default: () => [] },
   tides: { type: Array, default: () => [] },
-  beachOrientation: { type: Number, default: 90 }
+  beachOrientation: { type: Number, default: 90 },
+  surfRegion: { type: String, default: 'mid_atlantic' }
 })
 
 const { calculateRating, scoreToLabel } = useHowzitRating()
@@ -35,7 +36,8 @@ const bestWindow = computed(() => {
       wavePeriod: wavePd,
       windSpeed: h.windSpeed,
       windDirection: h.windDirection,
-      beachOrientation: props.beachOrientation
+      beachOrientation: props.beachOrientation,
+      surfRegion: props.surfRegion
     })
     
     return { ...h, score, waveHt, wavePd }

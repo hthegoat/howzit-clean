@@ -23,28 +23,6 @@
     <div class="p-4 relative">
       <div ref="chart" class="w-full" style="height: 150px;"></div>
 
-      <!-- Pro paywall overlay -->
-      <div 
-        v-if="!props.isProUser && hasExtendedData"
-        ref="paywallOverlay"
-        class="absolute top-0 right-0 bottom-0 flex items-center justify-center pointer-events-none"
-        :style="{ width: paywallWidth + '%' }"
-      >
-        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/80 to-white/95"></div>
-        <div class="relative pointer-events-auto text-center px-3">
-          <div class="bg-black text-white px-4 py-3 rounded-[6px] shadow-lg">
-            <p class="font-black text-sm uppercase">🔒 7-Day Forecast</p>
-            <p class="text-xs text-gray-300 mt-1">Unlock the full forecast for <span class="text-yellow-400 font-bold">$10/year</span></p>
-            <p class="text-[10px] text-gray-400 mt-0.5">First 1,000 members only</p>
-            <NuxtLink 
-              to="/pricing"
-              class="inline-block mt-2 bg-yellow-400 text-black font-bold text-xs px-3 py-1.5 rounded-[4px] border border-black hover:bg-yellow-300 transition-colors"
-            >
-              UNLOCK NOW
-            </NuxtLink>
-          </div>
-        </div>
-      </div>
 
       <!-- Legend -->
       <div class="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-3 text-xs font-medium">
@@ -102,14 +80,9 @@ import * as d3 from 'd3'
 const props = defineProps({
   forecasts: { type: Array, required: true },
   beachOrientation: { type: Number, default: 90 },
+  surfRegion: { type: String, default: 'mid_atlantic' },
   tides: { type: Array, default: () => [] },
-  isProUser: { type: Boolean, default: false }
 })
-
-// Calculate the free forecast cutoff (4 days from now)
-const freeCutoff = new Date()
-freeCutoff.setDate(freeCutoff.getDate() + 4)
-freeCutoff.setHours(0, 0, 0, 0)
 
 const emit = defineEmits(['hover', 'hoverEnd'])
 
@@ -118,26 +91,6 @@ const { calculateRating } = useHowzitRating()
 const source = ref('blend')
 const chart = ref(null)
 const hovered = ref(null)
-const paywallOverlay = ref(null)
-
-// Check if forecast data extends beyond the free window
-const hasExtendedData = computed(() => {
-  if (!props.forecasts.length) return false
-  const lastForecast = new Date(props.forecasts[props.forecasts.length - 1].timestamp)
-  return lastForecast > freeCutoff
-})
-
-// Calculate what % of the chart width should be covered by the paywall
-const paywallWidth = computed(() => {
-  if (!props.forecasts.length) return 0
-  const firstTime = new Date(props.forecasts[0].timestamp).getTime()
-  const lastTime = new Date(props.forecasts[props.forecasts.length - 1].timestamp).getTime()
-  const cutoffTime = freeCutoff.getTime()
-  const totalRange = lastTime - firstTime
-  if (totalRange <= 0) return 0
-  const gatedRange = lastTime - Math.max(cutoffTime, firstTime)
-  return Math.min(100, Math.max(0, (gatedRange / totalRange) * 100))
-})
 
 const sources = [
   { id: 'blend', label: 'Hwzt', title: 'Howzit blend (recommended)' },
@@ -256,7 +209,8 @@ const data = computed(() => {
       windSpeed: f.wind_speed,
       windDirection: f.wind_direction,
       windGust: f.wind_gust,
-      beachOrientation: props.beachOrientation
+      beachOrientation: props.beachOrientation,
+      surfRegion: props.surfRegion
     })
 
     const dir = deg => {
@@ -463,14 +417,6 @@ const render = () => {
       const idx = Math.round(x.invert(mx))
       const d = data.value[Math.max(0, Math.min(idx, data.value.length - 1))]
       if (!d) return
-      
-      // Block hover on gated data for free users
-      if (!props.isProUser && d.date > freeCutoff) {
-        hoverLine.style('display', 'none')
-        hoverDot.style('display', 'none')
-        hovered.value = null
-        return
-      }
       
       const px = x(d.i)
       const py = y(getDisplayHeight(d))

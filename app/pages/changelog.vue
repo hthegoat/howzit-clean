@@ -43,12 +43,12 @@
 
       <!-- Bottom CTA -->
       <div class="mt-12 text-center">
-        <p class="text-gray-400 text-sm mb-4">Shipping fast. Want to help shape what's next?</p>
+        <p class="text-gray-400 text-sm mb-4">Shipping fast. Check out what we're building.</p>
         <NuxtLink 
-          to="/pricing" 
+          to="/spots" 
           class="inline-block bg-black text-white font-bold text-sm px-6 py-3 rounded-[6px] border-2 border-black hover:bg-gray-800 transition-colors"
         >
-          BECOME A MEMBER
+          EXPLORE ALL SPOTS
         </NuxtLink>
       </div>
     </main>

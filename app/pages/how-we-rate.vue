@@ -19,24 +19,24 @@
           <div class="flex items-center gap-4 p-4 bg-white border-2 border-black rounded-lg">
             <div class="w-16 h-10 rounded" style="background-color: #10b981;"></div>
             <div>
-              <p class="font-bold text-lg">Epic / Good</p>
-              <p class="text-gray-600 text-sm">Clean conditions, quality waves. Get out there.</p>
+              <p class="font-bold text-lg">Epic</p>
+              <p class="text-gray-600 text-sm">Call in sick. Clean swell, offshore winds, rare conditions. Go now.</p>
             </div>
           </div>
           
           <div class="flex items-center gap-4 p-4 bg-white border-2 border-black rounded-lg">
             <div class="w-16 h-10 rounded" style="background-color: #3b82f6;"></div>
             <div>
-              <p class="font-bold text-lg">Fair</p>
-              <p class="text-gray-600 text-sm">Surfable conditions. Not perfect, but worth a paddle.</p>
+              <p class="font-bold text-lg">Good</p>
+              <p class="text-gray-600 text-sm">Solid conditions. Fun waves, manageable wind. Worth the paddle.</p>
             </div>
           </div>
           
           <div class="flex items-center gap-4 p-4 bg-white border-2 border-black rounded-lg">
             <div class="w-16 h-10 rounded" style="background-color: #fb7185;"></div>
             <div>
-              <p class="font-bold text-lg">Poor</p>
-              <p class="text-gray-600 text-sm">Choppy, weak, or blown out. For the dedicated only.</p>
+              <p class="font-bold text-lg">Junky</p>
+              <p class="text-gray-600 text-sm">Choppy, weak, or blown out. Rideable if you're desperate.</p>
             </div>
           </div>
           
@@ -269,7 +269,7 @@ const siteUrl = 'https://hwztsurf.com'
 const faqItems = [
   {
     question: 'How does Howzit calculate surf ratings?',
-    answer: 'Howzit combines wave height, wave period, swell direction relative to beach orientation, and wind speed/direction into a 0-100 score. Wave conditions account for 65 points (factoring in swell vs wind chop), and wind conditions account for 35 points (offshore wind scores highest). The final rating maps to Epic, Good, Fair, Poor, or Flat.'
+    answer: 'Howzit combines wave height, wave period, swell direction relative to beach orientation, and wind speed/direction into a 0-100 score. Wave conditions account for 65 points (factoring in swell vs wind chop), and wind conditions account for 35 points (offshore wind scores highest). The final rating maps to Epic, Good, Junky, or Flat.'
   },
   {
     question: 'What data sources does Howzit use for surf forecasts?',
