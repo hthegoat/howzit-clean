@@ -38,7 +38,8 @@ export default defineNuxtConfig({
     // Static pages - cache 1 day
     '/about': { isr: 86400 },
     '/how-we-rate': { isr: 86400 },
-    '/waitlist': { isr: 86400 },
+    // Removed pages — 301 to spots
+    '/waitlist': { redirect: { to: '/spots', statusCode: 301 } },
     '/pricing': { redirect: { to: '/spots', statusCode: 301 } },
     '/open': { isr: 900 },
     '/changelog': { isr: 86400 },
@@ -72,7 +73,7 @@ export default defineNuxtConfig({
       htmlAttrs: {
         lang: 'en'
       },
-      title: 'Howzit - Surf Forecasts That Don\'t Suck',
+      title: 'Howzit | Free Surf Report & Surf Forecast for 137 US Spots',
       script: [
         {
           src: 'https://www.googletagmanager.com/gtag/js?id=G-VKCEL7TEGB',
@@ -80,12 +81,13 @@ export default defineNuxtConfig({
         },
         {
           innerHTML: `window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('config', 'G-VKCEL7TEGB');`
-        }
+        },
+
       ],
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'Real-time surf reports. No ads. No bloat. No BS.' },
+        { name: 'description', content: 'Free surf reports and forecasts for 137 spots across 17 states. Real-time wave heights, swell period, wind, tides, and AI-powered surf conditions. No ads, no paywall.' },
         { name: 'theme-color', content: '#FACC15' },
         // Open Graph defaults (overridden per-page)
         { property: 'og:site_name', content: 'Howzit' },

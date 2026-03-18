@@ -206,18 +206,40 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Parse optional batch parameters (offset/limit) for cron batching
+    // Without params: processes first 30 spots (safe within 150s wall clock)
+    // With params: e.g. { "offset": 30, "limit": 30 } for batch 2
+    let limit = 30;
+    let offset = 0;
+    
+    try {
+      const body = await req.json();
+      if (body.limit) limit = Math.min(body.limit, 50);  // Max 50 per call
+      if (body.offset != null) offset = body.offset;
+    } catch {
+      // No body or invalid JSON, use defaults
+    }
+
     const { data: spots, error: spotsError } = await supabase
       .from("spots")
       .select("id, name, latitude, longitude")
       .not("latitude", "is", null)
-      .not("longitude", "is", null);
+      .not("longitude", "is", null)
+      .order("name")
+      .range(offset, offset + limit - 1);
 
     if (spotsError) throw new Error(`Failed to fetch spots: ${spotsError.message}`);
     if (!spots?.length) {
-      return new Response(JSON.stringify({ message: "No spots with coordinates found" }), {
+      return new Response(JSON.stringify({ message: "No spots in range", offset, limit }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
+
+    // Get total count for reporting
+    const { count: totalSpots } = await supabase
+      .from("spots")
+      .select("id", { count: "exact", head: true })
+      .not("latitude", "is", null);
 
     const results = { 
       processed: 0, 
@@ -373,20 +395,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Trigger summary generation
-    try {
-      await fetch(`${supabaseUrl}/functions/v1/generate-all-summaries`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseKey}`
-        }
-      });
-    } catch (e) {
-      results.errors.push(`Summary generation: ${e instanceof Error ? e.message : "Error"}`);
-    }
-
-    return new Response(JSON.stringify({ message: "Complete", ...results }), {
+    return new Response(JSON.stringify({
+      message: "Complete",
+      batch: { offset, limit, total: totalSpots },
+      next_offset: offset + spots.length < (totalSpots || 0) ? offset + spots.length : null,
+      ...results
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 

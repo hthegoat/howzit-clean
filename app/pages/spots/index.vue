@@ -237,15 +237,19 @@ const stateAbbr = {
 }
 
 // === SSR: Fetch spots + nearest forecasts server-side ===
+// Only fetch forecasts within the next 3 hours instead of all 14 days
+// This reduces ~46K rows to ~400 (137 spots × 3 hours)
 const { data: ssrSpots } = await useAsyncData('spots-index', async () => {
-  const now = new Date().toISOString()
+  const now = new Date()
+  const threeHoursOut = new Date(now.getTime() + 3 * 60 * 60 * 1000)
   
   const [spotsResult, forecastsResult] = await Promise.all([
     supabase.from('spots').select('*').order('name'),
     supabase
       .from('forecasts')
       .select('*')
-      .gte('timestamp', now)
+      .gte('timestamp', now.toISOString())
+      .lte('timestamp', threeHoursOut.toISOString())
       .order('timestamp', { ascending: true })
   ])
 

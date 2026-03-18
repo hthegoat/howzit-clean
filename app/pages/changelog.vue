@@ -72,34 +72,64 @@ const tagClass = (tag) => {
 
 const changelog = [
   {
+    date: 'Mar 11, 2026',
+    tag: 'fix',
+    title: 'Code Health Sweep',
+    description: 'Fixed rating algorithm height-cap bug where waves above 3ft could bypass scoring limits. Removed fragile meters-to-feet conversion guard. Optimized spots index page to fetch 99% less forecast data. Added batch support to the forecast ingestion pipeline to prevent timeout at scale.'
+  },
+  {
+    date: 'Mar 11, 2026',
+    tag: 'improvement',
+    title: 'Dead Code Cleanup',
+    description: 'Removed all monetization remnants — waitlist page, pricing page, PricingFeature component, fake user count animation. Cleaned open stats API to remove pro/founding tier references. Everything is free, and now the codebase reflects that.'
+  },
+  {
+    date: 'Mar 3, 2026',
+    tag: 'fix',
+    title: 'Cron Batch Coverage Extended',
+    description: 'Forecast ingestion and AI summary generation cron jobs now cover all 137+ spots. Previously only the first 90 spots were processed — new batches added with proper offsets to reach 150 spots.'
+  },
+  {
+    date: 'Mar 2026',
+    tag: 'launch',
+    title: 'Everything Is Free',
+    description: 'Removed all paid tiers, paywalls, and Stripe checkout flows. Every feature is now free — no Pro tier, no founding member pricing, no SurfGraph paywall overlay. Strategy: grow first, monetize later.'
+  },
+  {
+    date: 'Mar 2026',
+    tag: 'improvement',
+    title: 'Post-Launch Cleanup',
+    description: 'Removed badge system (Worth the Drive / Send It / Stay Local), renamed Better Conditions Nearby to Worth Checking, reordered By State view by spot count descending, replaced all JOIN WAITLIST CTAs with CREATE ACCOUNT.'
+  },
+  {
+    date: 'Mar 2026',
+    tag: 'data',
+    title: '137 Spots Across 17 States',
+    description: 'Expanded coverage to California (25 spots), Oregon (10), and Hawaii (15) — plus continued East Coast growth. Now covering 137 spots from Maine to Maui.'
+  },
+  {
+    date: 'Mar 2026',
+    tag: 'data',
+    title: 'Rating Algorithm v12 — Region-Aware',
+    description: 'Major rating overhaul with 8 surf regions (Northeast, Mid-Atlantic, Outer Banks, Southeast, Florida NE/SE, Gulf, West Coast), each with calibrated period curves, height caps, and skepticism flags. West Coast ground swell gets proper period-based scoring.'
+  },
+  {
+    date: 'Mar 2026',
+    tag: 'seo',
+    title: 'SEO Infrastructure Upgrade',
+    description: 'Dynamic OG meta tags per spot, JSON-LD structured data (Beach schema + FAQ rich snippets), dynamic sitemap with per-spot lastmod timestamps, and default OG image generation.'
+  },
+  {
     date: 'Feb 11, 2025',
     tag: 'launch',
     title: '$10/Year Early Access Pricing',
-    description: 'Launched early access Pro tier at $10/year for the first 1,000 members. Founding member pricing dropped to $99 lifetime. Open stats page goes live.'
-  },
-  {
-    date: 'Feb 10, 2025',
-    tag: 'feature',
-    title: 'Pro Paywall & Stripe Integration',
-    description: 'Full payment infrastructure with Stripe checkout, webhook handling, and subscription management. Free users get 4-day forecasts, Pro unlocks the full 7-day view.'
+    description: 'Launched early access Pro tier at $10/year for the first 1,000 members. Founding member pricing at $99 lifetime. Open stats page goes live.'
   },
   {
     date: 'Feb 10, 2025',
     tag: 'feature',
     title: 'My Spots — Follow Your Favorites',
     description: 'Follow your favorite surf spots and see current conditions at a glance from your account dashboard.'
-  },
-  {
-    date: 'Feb 7, 2025',
-    tag: 'improvement',
-    title: 'Landing Page Data Source Fix',
-    description: 'Updated landing page to accurately reflect our data sources: NOAA buoys, ECMWF, and Open-Meteo models. Removed incorrect Surfline reference.'
-  },
-  {
-    date: 'Feb 6, 2025',
-    tag: 'feature',
-    title: 'Admin Dashboard for Pipeline Health',
-    description: 'Built internal monitoring to track forecast freshness, buoy data health, AI summary generation, and overall system status across all 76 spots.'
   },
   {
     date: 'Feb 3, 2025',

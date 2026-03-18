@@ -194,16 +194,17 @@ const webPageSchema = {
 }
 
 useHead({
-  title: 'Howzit - Surf Forecasts That Don\'t Suck',
+  title: 'Howzit | Free Surf Report & Surf Forecast for 137 US Spots',
   meta: [
-    { name: 'description', content: 'Free surf reports for 137 spots across 17 states. No ads, no paywall—just wave heights, tides, wind, and AI-powered forecasts.' },
-    { property: 'og:title', content: 'Howzit - Surf Forecasts That Don\'t Suck' },
-    { property: 'og:description', content: 'Free surf reports for 137 spots across 17 states. No ads, no paywall—just the data you need to score waves.' },
+    { name: 'description', content: 'Free surf reports and forecasts for 137 spots across 17 states. Real-time wave heights, swell period, wind, tides, and AI-powered surf conditions from Maine to Hawaii. No ads, no paywall.' },
+    { property: 'og:title', content: 'Howzit | Free Surf Report & Forecast — 137 US Spots' },
+    { property: 'og:description', content: 'Free surf reports for 137 spots across 17 states. Real-time wave heights, wind, tides, and AI-powered forecasts. No ads, no paywall.' },
     { property: 'og:type', content: 'website' },
     { property: 'og:url', content: siteUrl },
     { name: 'twitter:card', content: 'summary' },
-    { name: 'twitter:title', content: 'Howzit - Surf Forecasts That Don\'t Suck' },
-    { name: 'twitter:description', content: 'Free surf reports for 137 spots across 17 states. No ads, no paywall—just the data you need to score waves.' },
+    { name: 'twitter:title', content: 'Howzit | Free Surf Report & Forecast — 137 US Spots' },
+    { name: 'twitter:description', content: 'Free surf reports for 137 spots across 17 states. Real-time wave heights, wind, tides, and AI-powered forecasts. No ads, no paywall.' },
+    { name: 'robots', content: 'index, follow' },
   ],
   link: [
     { rel: 'canonical', href: siteUrl }

@@ -245,11 +245,12 @@ export const useHowzitRating = () => {
   }) => {
     const config = getRegionConfig(surfRegion)
     const coastType = config.coastType
-    const toFeet = (h) => h && h < 10 ? h * 3.281 : h
+    // Data from Open-Meteo/ECMWF/WW3 is always in meters — always convert
+    const metersToFeet = (h) => h ? h * 3.281 : 0
     
-    const swellFt = toFeet(swellWaveHeight) || 0
-    const windChopFt = toFeet(windWaveHeight) || 0
-    const combinedFt = toFeet(waveHeight) || 0
+    const swellFt = metersToFeet(swellWaveHeight)
+    const windChopFt = metersToFeet(windWaveHeight)
+    const combinedFt = metersToFeet(waveHeight)
     
     const surfableHeight = Math.max(swellFt, combinedFt * 0.8)
     const period = swellWavePeriod || wavePeriod || 6
@@ -347,10 +348,11 @@ export const useHowzitRating = () => {
     
     const config = getRegionConfig(effectiveRegion)
     
-    const toFeet = (h) => h && h < 10 ? h * 3.281 : h
-    const swellFt = toFeet(swellWaveHeight) || 0
-    const combinedFt = toFeet(waveHeight) || 0
-    const windChopFt = toFeet(windWaveHeight) || 0
+    // Data from Open-Meteo/ECMWF/WW3 is always in meters — always convert
+    const metersToFeet = (h) => h ? h * 3.281 : 0
+    const swellFt = metersToFeet(swellWaveHeight)
+    const combinedFt = metersToFeet(waveHeight)
+    const windChopFt = metersToFeet(windWaveHeight)
     const gustMph = windGust ? windGust * 0.621 : 0
     const windMph = windSpeed ? windSpeed * 0.621 : 0
     
@@ -440,15 +442,18 @@ export const useHowzitRating = () => {
       const caps = config.heightCaps
       const sortedHeights = Object.keys(caps).map(Number).sort((a, b) => a - b)
       
+      let capped = false
       for (const ht of sortedHeights) {
         if (effectiveHeight < ht) {
           total = Math.min(total, caps[ht])
+          capped = true
           break
         }
-        // If effectiveHeight equals the last cap threshold
-        if (ht === sortedHeights[sortedHeights.length - 1] && effectiveHeight <= ht) {
-          total = Math.min(total, caps[ht])
-        }
+      }
+      // If effectiveHeight exceeds all thresholds, apply the highest cap
+      if (!capped) {
+        const maxCap = caps[sortedHeights[sortedHeights.length - 1]]
+        total = Math.min(total, maxCap)
       }
     }
     
