@@ -9,11 +9,30 @@
     <div class="p-4">
       <div ref="chart" class="w-full" style="height: 120px;"></div>
     </div>
+
+    <!-- Tide Times -->
+    <div v-if="tideDays.length" class="border-t-2 border-black">
+      <div class="grid" :style="{ gridTemplateColumns: `repeat(${tideDays.length}, 1fr)` }">
+        <div 
+          v-for="(day, idx) in tideDays" 
+          :key="day.label" 
+          class="px-3 py-3 text-[11px] font-mono"
+          :class="idx < tideDays.length - 1 ? 'border-r border-gray-200' : ''"
+        >
+          <div class="font-black text-[10px] uppercase mb-2">{{ day.label }}</div>
+          <div v-for="t in day.tides" :key="t.timestamp" class="flex items-baseline gap-1.5 py-0.5">
+            <span class="font-black text-[10px] w-3" :class="t.type === 'HIGH' ? 'text-blue-600' : 'text-gray-400'">{{ t.type === 'HIGH' ? 'H' : 'L' }}</span>
+            <span class="text-gray-700">{{ t.time }}</span>
+            <span class="text-gray-400 text-[10px]">{{ t.heightFt }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import * as d3 from 'd3'
 
 const props = defineProps({
@@ -23,6 +42,69 @@ const props = defineProps({
 })
 
 const chart = ref(null)
+
+// Tide times grouped by day for display below graph
+const tideDays = computed(() => {
+  if (!props.tides?.length || !props.forecasts?.length) return []
+  
+  const forecastTimes = props.forecasts.map(f => new Date(f.timestamp).getTime())
+  const startTime = Math.min(...forecastTimes)
+  const endTime = Math.max(...forecastTimes)
+  
+  // Get forecast start/end as dates for day grouping
+  const startDate = new Date(startTime)
+  const endDate = new Date(endTime)
+  
+  // Only show first 3 days to keep it glanceable
+  const maxDate = new Date(startDate)
+  maxDate.setDate(maxDate.getDate() + 3)
+  const cutoff = Math.min(endDate.getTime(), maxDate.getTime())
+  
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  // Filter tides within forecast range
+  const relevantTides = props.tides
+    .filter(t => {
+      const time = new Date(t.timestamp).getTime()
+      return time >= startTime && time <= cutoff
+    })
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+  
+  // Group by day
+  const dayMap = new Map()
+  
+  relevantTides.forEach(t => {
+    const d = new Date(t.timestamp)
+    const dayKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+    
+    if (!dayMap.has(dayKey)) {
+      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+      const diffDays = Math.round((dayStart - today) / (1000 * 60 * 60 * 24))
+      let label
+      if (diffDays === 0) label = 'Today'
+      else if (diffDays === 1) label = 'Tomorrow'
+      else label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+      
+      dayMap.set(dayKey, { label, tides: [] })
+    }
+    
+    const hours = d.getHours()
+    const mins = d.getMinutes()
+    const ampm = hours < 12 ? 'AM' : 'PM'
+    const displayH = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours
+    const timeStr = `${displayH}:${mins.toString().padStart(2, '0')}${ampm.toLowerCase()}`
+    
+    dayMap.get(dayKey).tides.push({
+      timestamp: t.timestamp,
+      type: t.type,
+      time: timeStr,
+      heightFt: `${t.height.toFixed(1)}ft`
+    })
+  })
+  
+  return Array.from(dayMap.values())
+})
 
 // Store references for hover updates
 let xScale = null

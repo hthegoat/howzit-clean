@@ -279,7 +279,7 @@ const render = () => {
   const g = svg.append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`)
   
-  const maxY = 15
+  const maxY = 10
   
   const x = d3.scaleLinear().domain([0, data.value.length - 1]).range([0, W])
   const y = d3.scaleLinear().domain([0, maxY]).range([H, 0])

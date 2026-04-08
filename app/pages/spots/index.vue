@@ -73,17 +73,18 @@
               >
                 All
               </button>
-              <button
+              <NuxtLink
                 v-for="sf in stateFilters"
                 :key="sf.key"
-                @click="selectedRegion = sf.key"
+                :to="`/spots/state/${sf.key.toLowerCase().replace(/\s+/g, '-')}`"
+                @click.prevent="selectedRegion = sf.key"
                 class="px-3 py-1.5 text-xs font-bold uppercase border-2 rounded-[var(--radius)] transition-all shrink-0"
                 :class="selectedRegion === sf.key 
                   ? 'bg-black text-white border-black' 
                   : 'bg-white text-gray-600 border-gray-300 hover:border-black hover:text-black'"
               >
                 {{ sf.label }} <span class="text-meta">{{ sf.count }}</span>
-              </button>
+              </NuxtLink>
             </div>
             <!-- Fade hint right -->
             <div class="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none" v-if="showScrollHint"></div>
