@@ -1,4 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Howzit">
   <rect width="128" height="128" rx="20" fill="#FACC15"/>
-  <text x="64" y="75" font-size="72" text-anchor="middle" dominant-baseline="middle">🌊</text>
+  <g transform="translate(16.2,23.7) scale(0.473)" fill="#000000">
+    <path d="M 194 54 L 122 66 L 139 8 L 113 12 L 98 51 L 66 59 L 79 15 L 48 20 L 8 142 L 41 127 L 58 83 L 89 75 L 79 108 L 136 87 L 57 162 L 170 150 L 193 120 L 121 132 Z"/>
+  </g>
 </svg>

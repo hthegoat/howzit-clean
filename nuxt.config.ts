@@ -73,7 +73,7 @@ export default defineNuxtConfig({
       htmlAttrs: {
         lang: 'en'
       },
-      title: 'Howzit | Free Surf Report & Surf Forecast for 137 US Spots',
+      title: 'Howzit | Free Surf Report & Surf Forecast for 149 US Spots',
       script: [
         {
           src: 'https://www.googletagmanager.com/gtag/js?id=G-VKCEL7TEGB',
@@ -87,8 +87,9 @@ export default defineNuxtConfig({
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'Free surf reports and forecasts for 137 spots across 17 states. Real-time wave heights, swell period, wind, tides, and AI-powered surf conditions. No ads, no paywall.' },
+        { name: 'description', content: 'Free surf reports and forecasts for 149 spots across 17 states. Real-time wave heights, swell period, wind, tides, and AI-powered surf conditions. No ads, no paywall.' },
         { name: 'theme-color', content: '#FACC15' },
+        { name: 'apple-mobile-web-app-title', content: 'Howzit' },
         // Open Graph defaults (overridden per-page)
         { property: 'og:site_name', content: 'Howzit' },
         { property: 'og:image', content: 'https://hwztsurf.com/images/og-default.png' },
@@ -101,11 +102,11 @@ export default defineNuxtConfig({
         { name: 'twitter:site', content: '@howzitsurf' },
       ],
       link: [
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+        { rel: 'icon', type: 'image/png', sizes: '96x96', href: '/favicon-96x96.png' },
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'shortcut icon', href: '/favicon.ico' },
         { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
-        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
-        { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png' }
+        { rel: 'manifest', href: '/site.webmanifest' }
       ]
     }
   }

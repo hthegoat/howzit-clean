@@ -106,7 +106,7 @@ async function fetchOpenMeteoMarine(lat: number, lng: number) {
       "tertiary_swell_wave_height", "tertiary_swell_wave_period", "tertiary_swell_wave_direction",
       "sea_surface_temperature", "ocean_current_velocity", "ocean_current_direction"
     ].join(","),
-    forecast_days: "14",
+    forecast_days: "7",
     timezone: "UTC"
   });
 
@@ -114,7 +114,7 @@ async function fetchOpenMeteoMarine(lat: number, lng: number) {
     latitude: lat.toString(),
     longitude: lng.toString(),
     hourly: "wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,cloud_cover",
-    forecast_days: "14",
+    forecast_days: "7",
     timezone: "UTC"
   });
 
@@ -139,13 +139,25 @@ async function fetchECMWF(lat: number, lng: number): Promise<{ data: any; error:
       longitude: lng.toString(),
       hourly: "wave_height,wave_period,wave_direction",
       models: "ecmwf_wam025",
-      forecast_days: "14",
+      cell_selection: "sea",   // snap to nearest water cell, not nearest cell
+      forecast_days: "7",
       timezone: "UTC"
     });
 
     const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?${params}`);
     if (!res.ok) return { data: null, error: `ECMWF HTTP ${res.status}` };
-    return { data: await res.json(), error: null };
+
+    const json = await res.json();
+
+    // Open-Meteo returns HTTP 200 with an all-null series for land cells.
+    // Treat that as an error so it shows up in ecmwf_errors instead of silently
+    // passing null into the blend.
+    const heights = json?.hourly?.wave_height;
+    if (!heights?.some((v: any) => v != null && Number.isFinite(v))) {
+      return { data: null, error: "ECMWF: no wave data (land cell)" };
+    }
+
+    return { data: json, error: null };
   } catch (e) {
     return { data: null, error: `ECMWF: ${e instanceof Error ? e.message : 'fetch failed'}` };
   }
@@ -157,33 +169,87 @@ async function fetchWaveWatchIII(lat: number, lng: number): Promise<{ data: any;
     const erddapLon = lng < 0 ? 360 + lng : lng;
     const gridLat = Math.round(lat * 2) / 2;
     const gridLon = Math.round(erddapLon * 2) / 2;
-    
+
+    // WW3 runs on a 0.5deg grid. Snapping to a single nearest point puts many
+    // coastal spots on a LAND cell, and ERDDAP answers those with HTTP 200 and
+    // NaN rather than an error -- so the failure is invisible. Instead request a
+    // 3x3 box (+/- 0.5deg) and pick the nearest cell that actually has water.
+    const latMin = gridLat - 0.5;
+    const latMax = gridLat + 0.5;
+    const lonMin = gridLon - 0.5;
+    const lonMax = gridLon + 0.5;
+
     const now = new Date();
     const startTime = now.toISOString();
-    
-    const dims = `[(${startTime}):1:(last)][(0.0):1:(0.0)][(${gridLat}):1:(${gridLat})][(${gridLon}):1:(${gridLon})]`;
-    
+    // Match the 7-day window used for Open-Meteo/ECMWF rather than taking
+    // everything ERDDAP has.
+    const endTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const dims = `[(${startTime}):1:(${endTime})][(0.0):1:(0.0)]` +
+      `[(${latMin}):1:(${latMax})][(${lonMin}):1:(${lonMax})]`;
+
     const url = `https://coastwatch.pfeg.noaa.gov/erddap/griddap/NWW3_Global_Best.json?` +
       `Thgt${dims},Tper${dims},Tdir${dims}`;
-    
+
     const res = await fetch(url);
     if (!res.ok) return { data: null, error: `WW3 HTTP ${res.status}` };
-    
+
     const data = await res.json();
-    
+    const rows = data?.table?.rows;
+    if (!rows?.length) return { data: null, error: "WW3: empty response" };
+
+    // ERDDAP encodes land / no-data as null or the string "NaN"
+    const num = (v: any): number | null => {
+      if (v === null || v === undefined) return null;
+      const n = typeof v === "number" ? v : parseFloat(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const near = (a: number | null, b: number) => a !== null && Math.abs(a - b) < 1e-6;
+
+    // Inventory every cell in the box: how much real data it has, how far it is
+    const cells = new Map<string, { lat: number; lon: number; valid: number; dist: number }>();
+    for (const r of rows) {
+      const cLat = num(r[2]);
+      const cLon = num(r[3]);
+      if (cLat === null || cLon === null) continue;
+
+      const key = `${cLat},${cLon}`;
+      if (!cells.has(key)) {
+        const dLat = cLat - lat;
+        const dLon = cLon - erddapLon;
+        cells.set(key, { lat: cLat, lon: cLon, valid: 0, dist: dLat * dLat + dLon * dLon });
+      }
+      if (num(r[4]) !== null) cells.get(key)!.valid++;
+    }
+
+    const usable = [...cells.values()].filter(c => c.valid > 0);
+    if (!usable.length) {
+      return { data: null, error: "WW3: no water cell within 0.5deg (all land/NaN)" };
+    }
+
+    // Nearest water cell wins. Locked in for the whole series so the timeline
+    // doesn't hop between cells and create discontinuities.
+    usable.sort((a, b) => a.dist - b.dist);
+    const best = usable[0];
+
+    const cellRows = rows.filter((r: any[]) =>
+      near(num(r[2]), best.lat) && near(num(r[3]), best.lon) && num(r[4]) !== null
+    );
+    if (!cellRows.length) return { data: null, error: "WW3: selected cell had no valid rows" };
+
     // Convert to hourly format matching Open-Meteo
-    const rows = data.table.rows;
     return {
       data: {
         hourly: {
-          time: rows.map((r: any[]) => {
+          time: cellRows.map((r: any[]) => {
             const timeVal = typeof r[0] === 'number' ? r[0] * 1000 : Date.parse(r[0]);
             return new Date(timeVal).toISOString();
           }),
-          wave_height: rows.map((r: any[]) => r[4]),
-          wave_period: rows.map((r: any[]) => r[5]),
-          wave_direction: rows.map((r: any[]) => r[6])
-        }
+          wave_height: cellRows.map((r: any[]) => num(r[4])),
+          wave_period: cellRows.map((r: any[]) => num(r[5])),
+          wave_direction: cellRows.map((r: any[]) => num(r[6]))
+        },
+        grid: { lat: best.lat, lon: best.lon, cells_checked: cells.size }
       },
       error: null
     };

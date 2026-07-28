@@ -494,11 +494,41 @@ export const useHowzitRating = () => {
     return 'Flat'
   }
   
+  // === PALETTE ===
+  // Two non-overlapping semantic lanes. Ratings answer "how good is it";
+  // wind answers "which way is it blowing". They must never share a color,
+  // otherwise a green wind arrow reads as an Epic rating.
+
+  // Lane 1 — ratings
+  const RATING_COLORS = {
+    epic:  '#1D9E75',
+    good:  '#378ADD',
+    junky: '#F09595',
+    flat:  '#D3D1C7',
+  }
+
+  // Lane 2 — wind quality (earth tones, no overlap with lane 1)
+  const WIND_COLORS = {
+    'offshore':  '#3B6D11',
+    'cross-off': '#6B8C21',
+    'cross':     '#B08A2E',
+    'cross-on':  '#C25A2A',
+    'onshore':   '#A32D2D',
+    'unknown':   '#9A9A93',
+  }
+
   const scoreToColor = (score) => {
-    if (score >= 70) return '#10b981'  // Epic - Emerald
-    if (score >= 40) return '#3b82f6'  // Good - Blue
-    if (score >= 12) return '#fb7185'  // Junky - Rose
-    return '#d1d5db'                   // Flat - Gray
+    if (score >= 70) return RATING_COLORS.epic
+    if (score >= 40) return RATING_COLORS.good
+    if (score >= 12) return RATING_COLORS.junky
+    return RATING_COLORS.flat
+  }
+
+  // Flat's fill color is too light to read as text on white — swap it for a
+  // muted tone that still says "nothing happening" without vanishing.
+  const scoreToTextColor = (score) => {
+    if (score < 12) return '#8A887F'
+    return scoreToColor(score)
   }
   
   const getWindQuality = (windDirection, beachOrientation = 90) => {
@@ -516,14 +546,7 @@ export const useHowzitRating = () => {
   
   const getWindColor = (windDirection, beachOrientation = 90) => {
     const quality = getWindQuality(windDirection, beachOrientation)
-    return {
-      'offshore': '#10b981',
-      'cross-off': '#10b981',
-      'cross': '#3b82f6',
-      'cross-on': '#fb7185',
-      'onshore': '#fb7185',
-      'unknown': '#9ca3af'
-    }[quality]
+    return WIND_COLORS[quality] || WIND_COLORS.unknown
   }
   
   const formatDirection = (degrees) => {
@@ -539,12 +562,15 @@ export const useHowzitRating = () => {
     scoreToStars,
     scoreToLabel,
     scoreToColor,
+    scoreToTextColor,
     getWindQuality,
     getWindColor,
     getPeriodWeight,
     getDirectionFactor,
     formatDirection,
     getRegionConfig,
-    REGION_CONFIG
+    REGION_CONFIG,
+    RATING_COLORS,
+    WIND_COLORS
   }
 }

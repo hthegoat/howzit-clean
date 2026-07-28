@@ -131,7 +131,7 @@
                   </div>
                   <div v-if="spot.forecast" class="text-right flex-shrink-0">
                     <p class="text-xl sm:text-2xl font-black">{{ formatWaveHeight(spot.forecast.blended_wave_height ?? spot.forecast.wave_height) }}</p>
-                    <p class="text-xs text-gray-500">{{ getSpotLabel(spot) }}</p>
+                    <p class="text-xs font-bold uppercase tracking-wide" :style="{ color: getSpotTextColor(spot) }">{{ getSpotLabel(spot) }}</p>
                   </div>
                   <div v-else class="text-right text-gray-400">
                     <p class="text-lg">--</p>
@@ -176,7 +176,7 @@
                     </div>
                     <div v-if="spot.forecast" class="text-right flex-shrink-0">
                       <p class="text-xl sm:text-2xl font-black">{{ formatWaveHeight(spot.forecast.blended_wave_height ?? spot.forecast.wave_height) }}</p>
-                      <p class="text-xs text-gray-500">{{ getSpotLabel(spot) }}</p>
+                      <p class="text-xs font-bold uppercase tracking-wide" :style="{ color: getSpotTextColor(spot) }">{{ getSpotLabel(spot) }}</p>
                     </div>
                     <div v-else class="text-right text-gray-400">
                       <p class="text-lg">--</p>
@@ -205,7 +205,7 @@
 
 <script setup>
 const supabase = useSupabaseClient()
-const { calculateRating, scoreToColor, scoreToLabel } = useHowzitRating()
+const { calculateRating, scoreToColor, scoreToTextColor, scoreToLabel } = useHowzitRating()
 
 const loading = ref(false)
 const viewMode = ref('list')
@@ -270,7 +270,10 @@ const { data: ssrSpots } = await useAsyncData('spots-index', async () => {
   }))
 })
 
-const spots = ref(ssrSpots.value || [])
+// Derived, not snapshotted. `ref(ssrSpots.value)` captured the value once at
+// setup, so on client-side navigation (where useAsyncData resolves after setup)
+// the list stayed empty until a hard refresh re-ran SSR.
+const spots = computed(() => ssrSpots.value || [])
 
 // Compute states with counts, ordered by count descending
 const stateFilters = computed(() => {
@@ -323,6 +326,10 @@ const getSpotScore = (spot) => {
 
 const getSpotColor = (spot) => {
   return scoreToColor(getSpotScore(spot))
+}
+
+const getSpotTextColor = (spot) => {
+  return scoreToTextColor(getSpotScore(spot))
 }
 
 const getSpotLabel = (spot) => {
