@@ -99,6 +99,17 @@ export default defineSitemapEventHandler(async (event) => {
     { slug: 'winter-storm-fern-surf-forecast-january-2026', date: '2026-01-20T00:00:00Z' }
   ]
 
+  // Posts published through the NotFair SEO webhook. Native posts above win
+  // any slug collision, same as the blog pages.
+  const nativeSlugs = new Set(blogPosts.map(p => p.slug))
+  const { data: notfairPosts } = await supabase
+    .from('notfair_posts')
+    .select('slug, created_at, updated_at') as { data: { slug: string; created_at: string; updated_at: string | null }[] | null }
+
+  ;(notfairPosts || [])
+    .filter(p => !nativeSlugs.has(p.slug))
+    .forEach(p => blogPosts.push({ slug: p.slug, date: new Date(p.updated_at || p.created_at).toISOString() }))
+
   blogPosts.forEach(post => {
     urls.push({
       loc: `/blog/${post.slug}`,
@@ -111,7 +122,7 @@ export default defineSitemapEventHandler(async (event) => {
   // Add blog index
   urls.push({
     loc: '/blog',
-    lastmod: blogPosts[blogPosts.length - 1].date,
+    lastmod: blogPosts.reduce((latest, p) => p.date > latest ? p.date : latest, staticDate),
     changefreq: 'weekly',
     priority: 0.6
   })

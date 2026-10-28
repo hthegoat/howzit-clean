@@ -11,7 +11,8 @@
     "app:build": "cross-env BUILD_TARGET=app nuxt generate",
     "app:sync": "npm run app:build && cap sync",
     "app:ios": "npm run app:sync && cap open ios",
-    "app:android": "npm run app:sync && cap open android"
+    "app:android": "npm run app:sync && cap open android",
+    "test": "vitest run"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
@@ -27,13 +28,16 @@
     "d3": "^7.9.0",
     "leaflet": "^1.9.4",
     "nuxt": "^4.2.1",
+    "sanitize-html": "^2.18.1",
     "stripe": "^20.3.1",
     "vue": "^3.5.25",
     "vue-router": "^4.6.3"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.0",
+    "@types/sanitize-html": "^2.16.2",
     "cross-env": "^10.1.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
   }
 }

@@ -8,31 +8,46 @@
         <span>←</span> All posts
       </NuxtLink>
 
-      <article v-if="post">
+      <article>
         <header class="mb-10 pb-8 border-b-2 border-gray-200">
-          <p class="text-sm text-gray-500 uppercase tracking-wide mb-3">{{ formatDate(post.date) }}</p>
+          <p class="text-sm text-gray-500 uppercase tracking-wide mb-3">
+            {{ formatDate(post.date) }}<template v-if="post.readingTime"> · {{ post.readingTime }} min read</template>
+          </p>
           <h1 class="text-3xl sm:text-4xl font-black leading-tight mb-4">{{ post.title }}</h1>
-          <p class="text-lg text-gray-600">{{ post.description }}</p>
+          <p v-if="post.description" class="text-lg text-gray-600">{{ post.description }}</p>
+          <ul v-if="post.tags.length" class="flex flex-wrap gap-2 mt-5">
+            <li
+              v-for="tag in post.tags"
+              :key="tag"
+              class="font-mono text-xs font-bold uppercase border-2 border-black rounded px-2 py-0.5 bg-white"
+            >{{ tag }}</li>
+          </ul>
         </header>
 
+        <img
+          v-if="post.image"
+          :src="post.image"
+          :alt="post.title"
+          width="1200"
+          height="630"
+          class="w-full h-auto mb-10 border-2 border-black rounded-lg shadow-[4px_4px_0px_#000]"
+        >
+
         <div class="prose prose-lg max-w-none">
-          <ContentRenderer :value="post" />
+          <ContentRenderer v-if="native" :value="native" />
+          <!-- Sanitized when stored (server/utils/notfair.ts) -->
+          <div v-else v-html="notfair.content_html_safe" />
         </div>
 
         <!-- CTA -->
         <div class="mt-12 p-6 bg-yellow-50 border-2 border-yellow-400 rounded-lg">
           <h3 class="font-bold text-lg mb-2">Check out Howzit</h3>
-          <p class="text-gray-700 mb-4">Free surf forecasts for 76 East Coast spots. Multi-model blending, confidence indicators, no BS.</p>
+          <p class="text-gray-700 mb-4">Free surf forecasts for 149 US spots. Multi-model blending, confidence indicators, no BS.</p>
           <NuxtLink to="/spots" class="inline-block bg-black text-white font-bold px-6 py-3 rounded hover:bg-gray-800 transition-colors">
             View All Spots →
           </NuxtLink>
         </div>
       </article>
-
-      <div v-else class="text-center py-12">
-        <p class="text-gray-500 mb-4">Post not found.</p>
-        <NuxtLink to="/blog" class="text-blue-600 hover:underline">Back to blog</NuxtLink>
-      </div>
     </main>
     
     <AppFooter />
@@ -42,10 +57,55 @@
 <script setup>
 const route = useRoute()
 const slug = route.params.slug
+const supabase = useSupabaseClient()
 
-const { data: post } = await useAsyncData(`blog-${slug}`, () => 
-  queryContent('blog', slug).findOne()
-)
+// Native markdown first; a native post wins any slug collision. Otherwise look
+// for a post delivered by the NotFair SEO webhook (notfair_posts table).
+const { data } = await useAsyncData(`blog-${slug}`, async () => {
+  const native = await queryContent('blog', slug).findOne().catch(() => null)
+  if (native) return { native, notfair: null }
+
+  const { data: notfair } = await supabase
+    .from('notfair_posts')
+    .select('slug, title, content_html_safe, meta_description, tags, image_url, reading_time_minutes, created_at, updated_at')
+    .eq('slug', slug)
+    .maybeSingle()
+  return { native: null, notfair: notfair || null }
+})
+
+// Unknown slug: a real 404 rather than a 200 "Post not found" page.
+if (!data.value?.native && !data.value?.notfair) {
+  throw createError({ statusCode: 404, statusMessage: 'Post not found', fatal: true })
+}
+
+const native = computed(() => data.value?.native || null)
+const notfair = computed(() => data.value?.notfair || null)
+
+// One shape for the header and SEO tags, whichever source the post came from.
+const post = computed(() => {
+  if (native.value) {
+    const n = native.value
+    return {
+      title: n.title,
+      description: n.description,
+      date: n.date,
+      updated: null,
+      readingTime: null,
+      tags: Array.isArray(n.tags) ? n.tags : [],
+      image: n.image || null
+    }
+  }
+  const p = notfair.value
+  return {
+    title: p.title,
+    description: p.meta_description,
+    date: p.created_at,
+    updated: p.updated_at,
+    readingTime: p.reading_time_minutes,
+    tags: p.tags || [],
+    image: p.image_url
+  }
+})
 
 const formatDate = (date) => {
   if (!date) return ''
@@ -60,12 +120,17 @@ const siteUrl = 'https://hwztsurf.com'
 
 // SEO meta tags
 useSeoMeta({
-  title: () => post.value ? `${post.value.title} - Howzit` : 'Post Not Found - Howzit',
-  description: () => post.value?.description || '',
-  ogTitle: () => post.value?.title || '',
-  ogDescription: () => post.value?.description || '',
+  title: () => `${post.value.title} - Howzit`,
+  description: () => post.value.description || '',
+  ogTitle: () => post.value.title,
+  ogDescription: () => post.value.description || '',
   ogType: 'article',
   ogUrl: `${siteUrl}/blog/${slug}`,
+  ogImage: () => post.value.image || undefined,
+  twitterImage: () => post.value.image || undefined,
+  articlePublishedTime: () => post.value.date ? new Date(post.value.date).toISOString() : undefined,
+  articleModifiedTime: () => post.value.updated || undefined,
+  articleTag: () => post.value.tags.length ? post.value.tags : undefined,
   author: 'Harrison Kug',
 })
 
@@ -77,12 +142,15 @@ useHead({
   script: [
     {
       type: 'application/ld+json',
-      innerHTML: JSON.stringify({
+      innerHTML: () => JSON.stringify({
         '@context': 'https://schema.org',
         '@type': 'Article',
-        headline: post.value?.title,
-        description: post.value?.description,
-        datePublished: post.value?.date,
+        headline: post.value.title,
+        description: post.value.description,
+        datePublished: post.value.date,
+        ...(post.value.updated ? { dateModified: post.value.updated } : {}),
+        ...(post.value.image ? { image: [post.value.image] } : {}),
+        ...(post.value.tags.length ? { keywords: post.value.tags.join(', ') } : {}),
         author: {
           '@type': 'Person',
           name: 'Harrison Kug'
@@ -145,5 +213,20 @@ useHead({
 }
 .prose em {
   @apply italic;
+}
+.prose img {
+  @apply max-w-full h-auto my-8 border-2 border-black rounded-lg;
+}
+.prose figure {
+  @apply my-8;
+}
+.prose figure img {
+  @apply my-0;
+}
+.prose figcaption {
+  @apply mt-2 text-sm text-gray-500 font-mono;
+}
+.prose ol {
+  @apply list-decimal pl-6 mb-6 space-y-2;
 }
 </style>

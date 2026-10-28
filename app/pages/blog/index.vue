@@ -11,11 +11,13 @@
       <div class="space-y-6">
         <NuxtLink 
           v-for="post in posts" 
-          :key="post._path"
-          :to="post._path"
+          :key="post.path"
+          :to="post.path"
           class="block bg-white border-2 border-black rounded-lg p-6 shadow-[4px_4px_0px_#000] hover:shadow-[2px_2px_0px_#000] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
         >
-          <p class="text-sm text-gray-500 mb-2">{{ formatDate(post.date) }}</p>
+          <p class="text-sm text-gray-500 mb-2">
+            {{ formatDate(post.date) }}<template v-if="post.readingTime"> · {{ post.readingTime }} min read</template>
+          </p>
           <h2 class="text-xl sm:text-2xl font-black mb-2">{{ post.title }}</h2>
           <p class="text-gray-600">{{ post.description }}</p>
         </NuxtLink>
@@ -31,11 +33,43 @@
 </template>
 
 <script setup>
-const { data: posts } = await useAsyncData('blog-posts', () => 
-  queryContent('blog')
-    .sort({ date: -1 })
-    .find()
-)
+const supabase = useSupabaseClient()
+
+// Native markdown posts plus posts published through the NotFair SEO webhook
+// (notfair_posts table). A native post wins any slug collision.
+const { data: posts } = await useAsyncData('blog-posts', async () => {
+  const [native, notfairRes] = await Promise.all([
+    queryContent('blog').sort({ date: -1 }).find(),
+    supabase
+      .from('notfair_posts')
+      .select('slug, title, meta_description, reading_time_minutes, created_at')
+      .order('created_at', { ascending: false })
+  ])
+
+  const nativePosts = native.map(p => ({
+    path: p._path,
+    slug: p._path.split('/').pop(),
+    title: p.title,
+    description: p.description,
+    date: p.date,
+    readingTime: null
+  }))
+  const taken = new Set(nativePosts.map(p => p.slug))
+
+  const notfairPosts = (notfairRes.data || [])
+    .filter(p => !taken.has(p.slug))
+    .map(p => ({
+      path: `/blog/${p.slug}`,
+      slug: p.slug,
+      title: p.title,
+      description: p.meta_description,
+      date: p.created_at,
+      readingTime: p.reading_time_minutes
+    }))
+
+  return [...nativePosts, ...notfairPosts]
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+})
 
 const formatDate = (date) => {
   if (!date) return ''
