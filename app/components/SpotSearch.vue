@@ -53,7 +53,7 @@
               ref="inputRef"
               v-model="query"
               type="text"
-              placeholder="Search 137 spots..."
+              placeholder="Search 149 spots..."
               class="flex-1 min-w-0 bg-transparent outline-none text-base font-medium placeholder:text-gray-400"
               autocomplete="off"
               autocorrect="off"

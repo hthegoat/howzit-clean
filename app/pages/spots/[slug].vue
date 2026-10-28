@@ -33,32 +33,41 @@
 
             <!-- Surf Graph -->
             <SurfGraph 
-              v-if="surflineForecasts.length"
-              :forecasts="surflineForecasts"
+              v-if="spotForecasts.length"
+              :forecasts="spotForecasts"
               :beach-orientation="beachOrientation"
               :surf-region="surfRegion"
-              :tides="surflineTides"
+              :tides="spotTides"
               @hover="graphHoverTime = $event"
               @hover-end="graphHoverTime = null"
             />
 
+            <!-- Wave Energy -->
+            <WaveEnergy :forecasts="spotForecasts" />
+
+            <!-- Buoy Check: models vs. reality -->
+            <BuoyCheck
+              v-if="spot.buoy_id"
+              :buoy="buoyReading"
+              :forecasts="spotForecasts"
+              :buoy-id="spot.buoy_id"
+            />
+
             <!-- Tide Forecast Graph -->
             <TideForecastGraph 
-              v-if="surflineTides.length && surflineForecasts.length"
-              :tides="surflineTides"
-              :forecasts="surflineForecasts"
+              v-if="spotTides.length && spotForecasts.length"
+              :tides="spotTides"
+              :forecasts="spotForecasts"
               :hover-time="graphHoverTime"
             />
 
             <!-- Best Time to Surf -->
             <BestTimeCard 
               :hourly-data="todayHourlyData"
-              :tides="surflineTides"
+              :tides="spotTides"
               :beach-orientation="beachOrientation"
               :surf-region="surfRegion"
             />
-
-            <SpotHistory :spot="spot" />
 
             <SpotAbout :spot="spot" />
 
@@ -68,7 +77,7 @@
               :state="spot.state"
               :water-temp="currentConditions.temp"
               :wave-height="currentConditions.height"
-              :tides="surflineTides"
+              :tides="spotTides"
               :sunrise="sunTimes?.sunrise"
               :sunset="sunTimes?.sunset"
               :best-swell="spot.best_swell_direction"
@@ -123,7 +132,7 @@ const { data: ssrData } = await useAsyncData(`spot-full-${route.params.slug}`, a
   if (!spotData) return null
 
   const now = new Date()
-  const fourteenDaysOut = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+  const sevenDaysOut = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
   const oneDayAgo = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000)
   const sixteenDaysOut = new Date(now.getTime() + 16 * 24 * 60 * 60 * 1000)
 
@@ -135,7 +144,7 @@ const { data: ssrData } = await useAsyncData(`spot-full-${route.params.slug}`, a
       .select('*')
       .eq('spot_id', spotData.id)
       .gte('timestamp', now.toISOString())
-      .lte('timestamp', fourteenDaysOut.toISOString())
+      .lte('timestamp', sevenDaysOut.toISOString())
       .order('timestamp', { ascending: true }),
     // Tides
     supabase
@@ -185,13 +194,20 @@ const { data: ssrData } = await useAsyncData(`spot-full-${route.params.slug}`, a
   }
 })
 
-// Unpack SSR data into refs (reactive so client-side updates still work)
+// Unknown slug: a real 404, not a 200 page stuck on "Loading..." that Google
+// indexes with the title "Loading...".
+if (!ssrData.value?.spot) {
+  throw createError({ statusCode: 404, statusMessage: 'Spot not found', fatal: true })
+}
+
+// Unpack SSR data (computed, not ref — a ref snapshots the value once at setup,
+// so on client-side navigation these stay empty until a hard refresh)
 const spot = computed(() => ssrData.value?.spot || null)
-const surflineForecasts = ref(ssrData.value?.forecasts || [])
-const surflineTides = ref(ssrData.value?.tides || [])
-const buoyReading = ref(ssrData.value?.buoy || null)
-const spotSummary = ref(ssrData.value?.summary || null)
-const nearbySpots = ref(ssrData.value?.nearby || [])
+const spotForecasts = computed(() => ssrData.value?.forecasts || [])
+const spotTides = computed(() => ssrData.value?.tides || [])
+const buoyReading = computed(() => ssrData.value?.buoy || null)
+const spotSummary = computed(() => ssrData.value?.summary || null)
+const nearbySpots = computed(() => ssrData.value?.nearby || [])
 
 // Beach orientation (default 90 = east facing)
 const beachOrientation = computed(() => spot.value?.orientation || 90)
@@ -211,7 +227,7 @@ const handleFeedback = async (accurate) => {
 }
 
 // Computed
-const latestForecast = computed(() => surflineForecasts.value[0] || null)
+const latestForecast = computed(() => spotForecasts.value[0] || null)
 
 // Use buoy data for current conditions when available, fallback to forecast
 const currentConditions = computed(() => {
@@ -229,18 +245,12 @@ const currentConditions = computed(() => {
     }
   }
 
-  // Use blended forecast data when available, fallback to Open-Meteo
-  const hasBuoyWaves = false // Disabled: buoy?.wave_height != null
-  
+  // Waves always come from the forecast (blend, then Open-Meteo). Buoy waves
+  // were tried here and dropped: offshore buoys read bigger than the beach.
+  // The buoy-vs-model comparison lives in BuoyCheck instead.
   let waveHeightFt, period, swellDir
-  
-  if (hasBuoyWaves) {
-    // Use buoy data - wave_height is in meters
-    waveHeightFt = Math.round(buoy.wave_height * 3.281)
-    // Prefer swell_period if available, otherwise dominant_period
-    period = buoy.swell_period || buoy.dominant_period || '--'
-    swellDir = buoy.swell_direction ?? buoy.wave_direction ?? null
-  } else if (f) {
+
+  if (f) {
     // Use blended wave height if available, otherwise Open-Meteo
     const height = f.blended_wave_height ?? f.wave_height
     waveHeightFt = height ? Math.round(height * 3.281) : 0
@@ -296,7 +306,7 @@ const currentConditions = computed(() => {
     swellDirection: swellDir,
     wind: { speed: windMph, direction: windDir, degrees: windDegrees },
     temp: waterTempF,
-    source: hasBuoyWaves ? 'buoy' : 'forecast'
+    source: 'forecast'
   }
 })
 
@@ -307,29 +317,14 @@ const currentRatingScore = computed(() => {
   
   if (!f && !buoy) return 0
   
-  // Use forecast data for rating (Open-Meteo)
-  // Buoy data disabled - Open-Meteo more accurate for this area
-  const hasBuoyWaves = false // Disabled: buoy?.wave_height != null
-  
-  // Build rating params - prefer buoy for waves, use forecast for wind if buoy wind unavailable
+  // Waves from the forecast (see currentConditions), wind from the buoy when
+  // it has one.
   const params = {
     beachOrientation: beachOrientation.value,
     surfRegion: surfRegion.value
   }
-  
-  if (hasBuoyWaves) {
-    // Use buoy wave data
-    params.waveHeight = buoy.wave_height
-    params.wavePeriod = buoy.dominant_period
-    params.waveDirection = buoy.wave_direction
-    // Buoy may have separated swell components
-    params.swellWaveHeight = buoy.swell_height
-    params.swellWavePeriod = buoy.swell_period
-    params.swellWaveDirection = buoy.swell_direction
-    params.windWaveHeight = buoy.wind_wave_height
-    params.windWavePeriod = buoy.wind_wave_period
-    params.windWaveDirection = buoy.wind_wave_direction
-  } else if (f) {
+
+  if (f) {
     // Use blended wave data when available, otherwise Open-Meteo
     params.waveHeight = f.blended_wave_height ?? f.wave_height
     params.wavePeriod = f.blended_wave_period ?? f.wave_period
@@ -400,36 +395,38 @@ const hazards = computed(() => {
   if (!f) return h
   // Convert km/h to mph
   const windMph = f.wind_speed ? f.wind_speed * 0.621 : 0
-  // Convert meters to feet
-  const waveHeightFt = f.wave_height ? f.wave_height * 3.281 : 0
+  // Same height the hero shows (blend first), so the two can't disagree
+  const waveM = f.blended_wave_height ?? f.wave_height
+  const waveHeightFt = waveM ? waveM * 3.281 : 0
   if (windMph > 20) h.push('Strong winds - use caution')
   if (waveHeightFt > 8) h.push('Large surf - experienced surfers only')
   return h
 })
 
-// Tide state - rising/falling and time until next
+// Today's tides, where "today" is the SPOT's day, not the viewer's. Someone
+// in New Jersey looking at Pipeline wants Hawaii's today.
+const spotTimezone = computed(() => spot.value?.timezone || 'America/New_York')
+const spotDay = (d) => new Intl.DateTimeFormat('en-CA', {
+  timeZone: spotTimezone.value, year: 'numeric', month: '2-digit', day: '2-digit'
+}).format(d)
+
 const todayTidesFiltered = computed(() => {
-  if (!surflineTides.value?.length) return []
-  
-  const today = new Date()
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
-  
-  return surflineTides.value
-    .filter(t => {
-      const tideDate = new Date(t.timestamp)
-      return tideDate >= todayStart && tideDate < todayEnd
-    })
+  if (!spotTides.value?.length) return []
+
+  const today = spotDay(new Date())
+
+  return spotTides.value
+    .filter(t => spotDay(new Date(t.timestamp)) === today)
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
 })
 
 const tideState = computed(() => {
-  if (!surflineTides.value?.length) return null
+  if (!spotTides.value?.length) return null
   
   const now = Date.now()
   
   // Get all tides sorted by time
-  const allTides = surflineTides.value
+  const allTides = spotTides.value
     .map(t => ({ ...t, time: new Date(t.timestamp).getTime() }))
     .sort((a, b) => a.time - b.time)
   

@@ -20,10 +20,10 @@
             VIEW FORECASTS
           </NuxtLink>
           <NuxtLink 
-            to="/login" 
+            to="/how-we-rate" 
             class="bg-white text-black font-bold px-6 sm:px-8 py-4 text-lg border-2 border-black rounded-[6px] sm:shadow-[4px_4px_0px_#000] sm:hover:shadow-[2px_2px_0px_#000] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
           >
-            CREATE ACCOUNT
+            HOW WE FORECAST
           </NuxtLink>
         </div>
       </div>
@@ -112,12 +112,6 @@
             class="bg-yellow-400 text-black font-bold px-6 sm:px-8 py-4 text-lg border-2 border-black rounded-[6px] sm:shadow-[4px_4px_0px_#000] sm:hover:shadow-[2px_2px_0px_#000] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
           >
             VIEW ALL SPOTS →
-          </NuxtLink>
-          <NuxtLink 
-            to="/login" 
-            class="bg-white text-black font-bold px-6 sm:px-8 py-4 text-lg border-2 border-black rounded-[6px] sm:shadow-[4px_4px_0px_#000] sm:hover:shadow-[2px_2px_0px_#000] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
-          >
-            CREATE ACCOUNT
           </NuxtLink>
         </div>
       </div>

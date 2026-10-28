@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white border-2 border-black rounded-lg overflow-hidden">
+  <BrutalCard class="overflow-hidden">
     <!-- Header -->
     <div class="flex flex-wrap justify-between items-center gap-2 px-4 py-3 border-b-2 border-black">
       <h2 class="font-black uppercase">Surf Graph</h2>
@@ -70,7 +70,7 @@
         <span v-if="hovered.allModels.openMeteo !== null">OM: {{ hovered.allModels.openMeteo }}ft</span>
       </div>
     </div>
-  </div>
+  </BrutalCard>
 </template>
 
 <script setup>

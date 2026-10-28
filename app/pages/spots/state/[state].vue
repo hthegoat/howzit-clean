@@ -248,23 +248,26 @@ const { data: spotsData } = await useAsyncData(`state-spots-${route.params.state
   const stateData = stateMap[stateParam]
   if (!stateData) return null
 
-  const now = new Date().toISOString()
-  
-  // Fetch spots and all forecasts in parallel (2 queries, not N+1)
-  const [spotsRes, forecastsRes] = await Promise.all([
-    supabase
-      .from('spots')
-      .select('*')
-      .eq('state', stateData.name)
-      .order('name'),
-    supabase
-      .from('forecasts')
-      .select('*')
-      .gte('timestamp', now)
-      .order('timestamp', { ascending: true })
-  ])
+  const spotsRes = await supabase
+    .from('spots')
+    .select('*')
+    .eq('state', stateData.name)
+    .order('name')
 
   if (!spotsRes.data) return null
+
+  // Only this state's spots, only the next few hours. The old query pulled
+  // every forecast row for every spot and relied on the 1000-row cap to
+  // happen to include each spot's first hour.
+  const now = new Date()
+  const soon = new Date(now.getTime() + 3 * 60 * 60 * 1000)
+  const forecastsRes = await supabase
+    .from('forecasts')
+    .select('*')
+    .in('spot_id', spotsRes.data.map(s => s.id))
+    .gte('timestamp', now.toISOString())
+    .lte('timestamp', soon.toISOString())
+    .order('timestamp', { ascending: true })
 
   // Group forecasts by spot_id, take the first (nearest) one
   const forecastsBySpot = {}
@@ -281,8 +284,14 @@ const { data: spotsData } = await useAsyncData(`state-spots-${route.params.state
   }))
 })
 
-const spots = ref(spotsData.value || [])
-const loading = ref(false)
+// Unknown state slug: real 404 instead of an empty page with a 200
+if (!stateInfo.value) {
+  throw createError({ statusCode: 404, statusMessage: 'State not found', fatal: true })
+}
+
+// computed, not ref: a ref snapshots once, so client-side navigation between
+// states kept showing the first state's spots
+const spots = computed(() => spotsData.value || [])
 
 // Rating helpers
 const getSpotScore = (spot) => {

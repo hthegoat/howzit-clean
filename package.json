@@ -7,9 +7,17 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "app:build": "cross-env BUILD_TARGET=app nuxt generate",
+    "app:sync": "npm run app:build && cap sync",
+    "app:ios": "npm run app:sync && cap open ios",
+    "app:android": "npm run app:sync && cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/splash-screen": "^8.0.2",
     "@nuxt/content": "^2.13.4",
     "@nuxtjs/google-fonts": "^3.2.0",
     "@nuxtjs/sitemap": "^7.5.1",
@@ -22,5 +30,10 @@
     "stripe": "^20.3.1",
     "vue": "^3.5.25",
     "vue-router": "^4.6.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
+    "cross-env": "^10.1.0",
+    "typescript": "^7.0.2"
   }
 }

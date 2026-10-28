@@ -5,10 +5,10 @@
         <div>
           <h3 class="font-black uppercase text-xs tracking-wider mb-3">Product</h3>
           <ul class="space-y-1.5 text-sm">
-            <li><NuxtLink to="/#features" class="text-gray-500 hover:text-black">Features</NuxtLink></li>
+            <li v-if="!isApp"><NuxtLink to="/#features" class="text-gray-500 hover:text-black">Features</NuxtLink></li>
             <li><NuxtLink to="/how-we-rate" class="text-gray-500 hover:text-black">How We Rate</NuxtLink></li>
             <li><NuxtLink to="/spots" class="text-gray-500 hover:text-black">All Spots</NuxtLink></li>
-            <li><NuxtLink to="/blog" class="text-gray-500 hover:text-black">Blog</NuxtLink></li>
+            <li v-if="!isApp"><NuxtLink to="/blog" class="text-gray-500 hover:text-black">Blog</NuxtLink></li>
           </ul>
         </div>
         
@@ -16,7 +16,7 @@
           <h3 class="font-black uppercase text-xs tracking-wider mb-3">Company</h3>
           <ul class="space-y-1.5 text-sm">
             <li><NuxtLink to="/about" class="text-gray-500 hover:text-black">About</NuxtLink></li>
-            <li><NuxtLink to="/open" class="text-gray-500 hover:text-black">Open Stats</NuxtLink></li>
+            <li v-if="!isApp"><NuxtLink to="/open" class="text-gray-500 hover:text-black">Open Stats</NuxtLink></li>
             <li><NuxtLink to="/changelog" class="text-gray-500 hover:text-black">Changelog</NuxtLink></li>
           </ul>
         </div>
@@ -25,16 +25,24 @@
           <h3 class="font-black uppercase text-xs tracking-wider mb-3">Connect</h3>
           <ul class="space-y-1.5 text-sm">
             <li><a href="mailto:howzitsurfing@gmail.com" class="text-gray-500 hover:text-black">Email</a></li>
-            <li><NuxtLink to="/blog" class="text-gray-500 hover:text-black">Blog</NuxtLink></li>
+            <li v-if="!isApp"><NuxtLink to="/blog" class="text-gray-500 hover:text-black">Blog</NuxtLink></li>
           </ul>
         </div>
       </div>
       
       <div class="mt-8 pt-5 border-t-2 border-black text-center">
         <p class="font-black uppercase text-sm mb-1">Built By A Surfer, Not A Corporation</p>
-        <p class="text-gray-400 text-xs">&copy; {{ new Date().getFullYear() }} Howzit · Indie, ad-free, and <NuxtLink to="/open" class="underline hover:text-black">open</NuxtLink>.</p>
+        <p class="text-gray-400 text-xs">&copy; {{ new Date().getFullYear() }} Howzit · Indie, ad-free, and <NuxtLink v-if="!isApp" to="/open" class="underline hover:text-black">open</NuxtLink><span v-else>open</span>.</p>
         <p class="text-gray-400 text-xs mt-1"><NuxtLink to="/privacy" class="underline hover:text-black">Privacy</NuxtLink> · <NuxtLink to="/terms" class="underline hover:text-black">Terms</NuxtLink></p>
       </div>
     </div>
   </footer>
 </template>
+
+<script setup>
+// Blog and Open Stats are stripped from the app bundle — blog needs
+// @nuxt/content, open stats calls a server API. Linking to either inside the
+// app is a tap into a 404. Features points at a homepage anchor, and the app
+// redirects the homepage to /spots, so the anchor goes nowhere too.
+const { isApp } = useRuntimeConfig().public
+</script>

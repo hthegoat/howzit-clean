@@ -1,5 +1,5 @@
 <template>
-  <div v-if="hazards && hazards.length > 0" class="bg-yellow-50 rounded-[6px] p-4 sm:p-5 border-2 border-black sm:shadow-[2px_2px_0px_#000]">
+  <BrutalCard v-if="hazards && hazards.length > 0" class="bg-yellow-50 p-4 sm:p-5">
     <p class="text-card-title mb-3 flex items-center gap-2">
       <span>⚠️</span> Hazards
     </p>
@@ -9,7 +9,7 @@
         {{ hazard }}
       </li>
     </ul>
-  </div>
+  </BrutalCard>
 </template>
 
 <script setup>

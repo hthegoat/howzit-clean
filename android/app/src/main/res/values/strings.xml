@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Howzit</string>
+    <string name="title_activity_main">Howzit</string>
+    <string name="package_name">com.hwztsurf.app</string>
+    <string name="custom_url_scheme">com.hwztsurf.app</string>
+</resources>

@@ -1,12 +1,12 @@
 import { serverSupabaseClient } from '#supabase/server'
+import { DATA_FRESHNESS, SITE_URL, stateSlug } from '../utils/spot-text'
 
 export default defineEventHandler(async (event) => {
   const supabase = await serverSupabaseClient(event)
-  
-  // Fetch all spots
+
   const { data: spots, error } = await supabase
     .from('spots')
-    .select('slug, name, state, region, latitude, longitude, orientation')
+    .select('slug, name, state, region, latitude, longitude')
     .order('state')
     .order('name')
 
@@ -14,36 +14,26 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, message: 'Failed to fetch spots' })
   }
 
-  const updated = new Date().toISOString()
-  
-  // Group by state
   const byState: Record<string, any[]> = {}
   spots?.forEach(spot => {
     const state = spot.state || 'Unknown'
     if (!byState[state]) byState[state] = []
     byState[state].push(spot)
   })
+  const stateNames = Object.keys(byState).sort()
 
-  let md = `# Howzit Surf Spots - East Coast USA
+  let md = `# Howzit Surf Spots - United States
 
-**Total Spots:** ${spots?.length || 0}  
-**Coverage:** Maine to Florida  
-**Updated:** ${updated}  
-**Source:** [Howzit](https://hwztsurf.com)
+**Total Spots:** ${spots?.length || 0}
+**States:** ${stateNames.length} (East Coast, West Coast, Hawaii)
+**Updated:** ${new Date().toISOString()}
+**Source:** [Howzit](${SITE_URL})
 
 ---
 
 ## Overview
 
-Howzit provides free, transparent surf forecasts for ${spots?.length || 0} surf spots along the East Coast of the United States. Our forecasts blend multiple data sources including NOAA WaveWatch III, ECMWF WAM, and Open-Meteo Marine API.
-
-Each spot page includes:
-- Current wave height, swell direction, and period
-- Wind speed and direction
-- Water temperature
-- Tide times and heights
-- AI-generated forecast summary
-- 24-hour detailed forecast
+Howzit provides free, transparent surf forecasts for ${spots?.length || 0} US surf spots. Each spot shows three wave models side by side (Open-Meteo Marine, NOAA WaveWatch III, ECMWF WAM), a blend, live NOAA buoy data, tides, and an AI summary.
 
 ---
 
@@ -51,68 +41,39 @@ Each spot page includes:
 
 `
 
-  // List spots by state
-  const stateNames = Object.keys(byState).sort()
-  
-  stateNames.forEach(state => {
-    const stateSlug = state.toLowerCase().replace(/\s+/g, '-')
-    const stateSpots = byState[state]
-    
-    md += `### ${state} (${stateSpots.length} spots)
+  for (const state of stateNames) {
+    const list = byState[state]
+    md += `### ${state} (${list.length} spots)
 
 | Spot | Region | Coordinates | Forecast |
 |------|--------|-------------|----------|
 `
-    
-    stateSpots.forEach(spot => {
-      const coords = spot.latitude && spot.longitude 
-        ? `${spot.latitude.toFixed(4)}, ${spot.longitude.toFixed(4)}` 
+    for (const spot of list) {
+      const coords = spot.latitude != null && spot.longitude != null
+        ? `${Number(spot.latitude).toFixed(4)}, ${Number(spot.longitude).toFixed(4)}`
         : 'N/A'
-      md += `| ${spot.name} | ${spot.region || '-'} | ${coords} | [View](/spots/${spot.slug}.md) |\n`
-    })
-    
-    md += `\n[View all ${state} spots](/api/spots/state/${stateSlug}.md)\n\n`
-  })
+      md += `| ${spot.name} | ${spot.region || '-'} | ${coords} | [View](${SITE_URL}/spots/${spot.slug}.md) |\n`
+    }
+    md += `\n[All ${state} spots](${SITE_URL}/api/spots/state/${stateSlug(state)}.md)\n\n`
+  }
 
   md += `---
 
-## Quick State Links
-
-`
-
-  stateNames.forEach(state => {
-    const stateSlug = state.toLowerCase().replace(/\s+/g, '-')
-    md += `- [${state}](/api/spots/state/${stateSlug}.md) (${byState[state].length} spots)\n`
-  })
-
-  md += `
----
-
 ## Using This Data
 
-### For AI Agents
-
-Each spot has a markdown endpoint available at:
+Each spot has a markdown endpoint:
 \`\`\`
-https://hwztsurf.com/spots/{slug}.md
-\`\`\`
-
-Example:
-\`\`\`
-https://hwztsurf.com/spots/wrightsville-beach.md
+${SITE_URL}/spots/{slug}.md
 \`\`\`
 
 State-level indexes:
 \`\`\`
-https://hwztsurf.com/api/spots/state/{state-slug}.md
+${SITE_URL}/api/spots/state/{state-slug}.md
 \`\`\`
 
 ### Data Freshness
 
-- **Forecasts:** Updated every 6 hours
-- **Buoy data:** Real-time (15-minute delay from NOAA)
-- **Tides:** Updated daily
-- **AI summaries:** Generated twice daily
+${DATA_FRESHNESS}
 
 ### Attribution
 
@@ -120,17 +81,12 @@ When citing this data, please use: "Source: Howzit (hwztsurf.com)"
 
 ---
 
-## About Howzit
-
-Howzit is a free alternative to paid surf forecasting services. We believe surf data should be transparent and accessible to everyone.
-
-**Website:** https://hwztsurf.com  
+**Website:** ${SITE_URL}
 **Contact:** hello@hwztsurf.com
 `
 
-  // Set headers
   setHeader(event, 'Content-Type', 'text/markdown; charset=utf-8')
-  setHeader(event, 'Cache-Control', 'public, max-age=3600, s-maxage=3600') // 1 hour cache
-  
+  setHeader(event, 'Cache-Control', 'public, max-age=3600, s-maxage=3600')
+
   return md
 })

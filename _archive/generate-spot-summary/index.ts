@@ -12,6 +12,13 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
 const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
 
+const FAIL_MESSAGES = [
+    'Summary temporarily unavailable.',
+    'Summary generation failed.',
+    'Unable to generate summary.',
+    'Forecast summary unavailable.'
+]
+
 const degreesToCompass = (degrees: number | null): string => {
     if (degrees === null || degrees === undefined) return '--'
     const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
@@ -39,15 +46,15 @@ const formatForecastData = (spot: any, forecasts: any[], tides: any[], waterTemp
         const dateKey = date.toDateString()
         if (!byDay[dateKey]) byDay[dateKey] = { date, forecasts: [] }
         const hour = date.getHours()
-        
+
         // Use blended wave height when available, fallback to Open-Meteo
         const waveHeightM = f.blended_wave_height ?? f.wave_height
         const wavePeriodS = f.blended_wave_period ?? f.wave_period
-        
+
         // Convert meters to feet, km/h to mph
         const waveHeightFt = waveHeightM ? Math.round(waveHeightM * 3.281) : null
         const windMph = f.wind_speed ? Math.round(f.wind_speed * 0.621) : null
-        
+
         byDay[dateKey].forecasts.push({
             period: hour < 12 ? 'AM' : 'PM',
             waveHeight: waveHeightFt,
@@ -105,9 +112,12 @@ const formatForecastData = (spot: any, forecasts: any[], tides: any[], waterTemp
 }
 
 const generateSummary = async (forecastData: string): Promise<string> => {
+    console.log("API Key exists:", !!ANTHROPIC_API_KEY)
+
     if (!ANTHROPIC_API_KEY) return "Forecast summary unavailable."
 
     try {
+        console.log("Calling Anthropic...")
         const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
@@ -116,38 +126,45 @@ const generateSummary = async (forecastData: string): Promise<string> => {
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-                model: 'claude-3-5-sonnet-20241022',
+                model: 'claude-haiku-4-5-20251001',
                 max_tokens: 100,
                 messages: [{
                     role: 'user',
-                    content: `${forecastData}\n\nTwo sentences max. Best day and why. Sound human. No greetings.`
+                    content: `${forecastData}\n\nTwo sentences max. Best day and why. Sound human. No greetings. Plain text only - no markdown, no asterisks, no bold, no bullet points.`
                 }]
             })
         })
 
-        if (!response.ok) return "Summary temporarily unavailable."
+        console.log("Response status:", response.status)
+
+        if (!response.ok) {
+            const errText = await response.text()
+            console.log("Error response:", errText)
+            return "Summary temporarily unavailable."
+        }
         const data = await response.json()
+        console.log("Success:", data.content?.[0]?.text)
         return data.content?.[0]?.text?.trim() || "Unable to generate summary."
-    } catch {
+    } catch (err) {
+        console.log("Exception:", err)
         return "Summary generation failed."
     }
 }
 
 serve(async (req) => {
-    // Handle CORS preflight
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
     }
 
     try {
         const { spot_id } = await req.json()
-        if (!spot_id) return new Response(JSON.stringify({ error: 'spot_id required' }), { 
+        if (!spot_id) return new Response(JSON.stringify({ error: 'spot_id required' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
 
         const { data: spot } = await supabase.from('spots').select('*').eq('id', spot_id).single()
-        if (!spot) return new Response(JSON.stringify({ error: 'Spot not found' }), { 
+        if (!spot) return new Response(JSON.stringify({ error: 'Spot not found' }), {
             status: 404,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
@@ -173,17 +190,23 @@ serve(async (req) => {
         const forecastData = formatForecastData(spot, forecasts || [], tides || [], waterTemp)
         const summary = await generateSummary(forecastData)
 
-        await supabase.from('spot_summaries').upsert({
-            spot_id,
-            summary,
-            generated_at: new Date().toISOString()
-        }, { onConflict: 'spot_id' })
+        const today = new Date().toISOString().split('T')[0]
+
+        // Only save real summaries — don't overwrite good data with failure messages
+        if (!FAIL_MESSAGES.includes(summary)) {
+            await supabase.from('spot_summaries').upsert({
+                spot_id,
+                summary,
+                generated_at: new Date().toISOString(),
+                forecast_date: today
+            }, { onConflict: 'spot_id,forecast_date' })
+        }
 
         return new Response(JSON.stringify({ spot: spot.name, summary }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
     } catch (err) {
-        return new Response(JSON.stringify({ error: err instanceof Error ? err.message : 'Error' }), { 
+        return new Response(JSON.stringify({ error: err instanceof Error ? err.message : 'Error' }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })

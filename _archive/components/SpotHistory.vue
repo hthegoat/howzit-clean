@@ -28,7 +28,7 @@ const props = defineProps({
 const history = ref([])
 
 onMounted(async () => {
-  // Placeholder - would fetch from surfline_forecasts for past days
+  // Placeholder - would fetch past days from forecasts
   // For now showing static example
   if (props.spot) {
     history.value = [

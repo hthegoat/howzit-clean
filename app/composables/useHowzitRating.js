@@ -2,7 +2,14 @@
 // Region-aware rating — each sub-region has calibrated expectations
 // Goal: Match what an experienced LOCAL would say about a day at their break
 //
-// surfRegion: 'northeast' | 'mid_atlantic' | 'outer_banks' | 'southeast' | 'florida_ne' | 'florida_se' | 'gulf' | 'west' 
+// surfRegion must cover every value of spots.surf_region in the database.
+// East:  'northeast' | 'mid_atlantic' | 'outer_banks' | 'southeast' | 'florida_ne' | 'florida_se' | 'gulf'
+// West:  'west' (base) | 'socal' | 'la_ventura' | 'central_coast' | 'norcal' | 'pacific_nw'
+// Pacific: 'hawaii'
+//
+// If you add a surf_region to the database, add it here too. getRegionConfig
+// falls back to mid_atlantic for anything unknown, which is silent and wrong.
+//
 // coastType: derived from surfRegion (east/west) — kept for backward compatibility
 // 
 // Rating scale (4-tier):
@@ -10,6 +17,10 @@
 // - Good (40-69): Solid session. Fun waves, worth the paddle.
 // - Junky (12-39): Choppy, weak, or blown out. For the dedicated.
 // - Flat (0-11): Nothing to ride.
+
+// Module-scoped so the warning fires once per unknown region per page load,
+// not once per component that happens to call the composable.
+const _warnedRegions = new Set()
 
 export const useHowzitRating = () => {
   
@@ -153,13 +164,73 @@ export const useHowzitRating = () => {
       periodCap: { under5: 35, under6: null },
       smallComboMax: { under5: 25, under6: 35 },
     },
+    
+    // === PACIFIC ===
+    
+    hawaii: {
+      // Deep water right up to the reef — no continental shelf to bleed energy,
+      // so swell arrives with its period intact and stands up on the reef.
+      // Two seasons that are basically two different coastlines: winter NW
+      // groundswell on the North Shore, summer S swell on the South Shore.
+      // Direction is therefore the dominant term, more so than anywhere else.
+      //
+      // Stricter than `west` at short period on purpose: 6-8s here is trade
+      // wind slop, which is an everyday condition rather than a swell event.
+      // More generous above 14s, because that is what the islands are for.
+      coastType: 'west',
+      periodCurve: {
+        4: 0.15, 5: 0.22, 6: 0.35, 7: 0.42, 8: 0.52, 9: 0.60,
+        10: 0.75, 11: 0.82, 12: 0.95, 13: 1.0, 14: 1.1, 15: 1.15,
+        16: 1.25, 18: 1.35, 20: 1.45
+      },
+      heightCaps: null, // Uses effective height system
+      skepticism: false, // Long period on small swell is real here, not an artifact
+      directionWeight: 0.65,
+      periodCap: { under5: 30, under6: null },
+      smallComboMax: { under5: 22, under6: 32 },
+    },
   }
   
   /**
-   * Get region config, with fallback to mid_atlantic (the original v10 baseline)
+   * The database splits the West Coast into five sub-regions. The rating
+   * system does not — they all share the `west` calibration for now.
+   * 
+   * This is deliberate. `west` is a real, tested calibration; five invented
+   * sub-calibrations would not be, and a wrong rating costs more credibility
+   * than a coarse one. What matters is that these spots stop being rated as
+   * mid-Atlantic beach breaks, which is what the missing-key fallback was
+   * doing to all 35 of them.
+   * 
+   * Splitting them later is a real refinement — SoCal sits in the shadow of
+   * the Channel Islands and Point Conception and should be more forgiving on
+   * height, while Oregon sees 12s+ often enough that it should be less
+   * forgiving — but it needs validation against local expectation, not a
+   * guess. Note these are shared object references: clone before diverging.
+   */
+  const WEST_COAST_REGIONS = ['socal', 'la_ventura', 'central_coast', 'norcal', 'pacific_nw']
+  for (const region of WEST_COAST_REGIONS) {
+    REGION_CONFIG[region] = REGION_CONFIG.west
+  }
+  
+  /**
+   * Get region config, with fallback to mid_atlantic (the original v10 baseline).
+   * 
+   * The fallback warns rather than passing silently. The quiet version of this
+   * function rated 50 West Coast and Hawaii spots — a third of the site — as
+   * mid-Atlantic beach breaks, and nothing ever surfaced it.
    */
   const getRegionConfig = (surfRegion) => {
-    return REGION_CONFIG[surfRegion] || REGION_CONFIG['mid_atlantic']
+    const config = REGION_CONFIG[surfRegion]
+    if (config) return config
+    
+    if (surfRegion && !_warnedRegions.has(surfRegion)) {
+      _warnedRegions.add(surfRegion)
+      console.warn(
+        `[howzit-rating] unknown surf_region "${surfRegion}" — rating it as mid_atlantic. ` +
+        `Add it to REGION_CONFIG in useHowzitRating.js.`
+      )
+    }
+    return REGION_CONFIG.mid_atlantic
   }
 
   /**

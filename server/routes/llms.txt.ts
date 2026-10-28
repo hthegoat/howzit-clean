@@ -1,71 +1,67 @@
 import { serverSupabaseServiceRole } from '#supabase/server'
+import { DATA_FRESHNESS, SITE_URL } from '../utils/spot-text'
 
 export default defineEventHandler(async (event) => {
   const supabase = serverSupabaseServiceRole(event)
-  
-  // Get spot count and state list
-  const { data: spots } = await supabase
-    .from('spots')
-    .select('state')
-  
+
+  const { data: spots } = await supabase.from('spots').select('state')
+
   const spotCount = spots?.length || 0
   const states = [...new Set((spots as any[])?.map(s => s.state).filter(Boolean))].sort()
 
   const content = `# Howzit Surf Forecasts
-# https://hwztsurf.com
+# ${SITE_URL}
 # AI Agent Discovery File
 
 ## About
 
-Howzit provides free, transparent surf forecasts for ${spotCount} surf spots along the US East Coast (Maine to Florida).
+Howzit provides free, transparent surf forecasts for ${spotCount} surf spots across ${states.length} US states: the East Coast from Maine to Florida, the West Coast (California, Oregon), and Hawaii.
 
 Unlike paywalled services, Howzit offers:
-- Open data from multiple forecast models
-- Real-time buoy readings from NOAA
-- AI-generated natural language summaries
-- No ads, no paywalls, no tracking
-
-## Data Sources
-
-- Wave Forecasts: NOAA WaveWatch III, ECMWF WAM, Open-Meteo Marine API
-- Buoy Data: NOAA NDBC (real-time)
-- Tide Predictions: NOAA CO-OPS
-- Summaries: AI-generated twice daily
+- Three wave models side by side (Open-Meteo, NOAA WaveWatch III, ECMWF WAM) plus a blend
+- Real-time buoy readings from NOAA, checked against the models
+- AI-generated plain-language summaries
+- No ads, no paywalls
 
 ## Available Endpoints (Markdown)
 
 ### All Spots Index
-URL: https://hwztsurf.com/spots.md
-Returns: Complete list of all ${spotCount} spots with coordinates
+URL: ${SITE_URL}/spots.md
+Returns: Every spot with region, coordinates, and links
 
 ### Individual Spot Forecast
-Pattern: https://hwztsurf.com/spots/{slug}.md
-Example: https://hwztsurf.com/spots/wrightsville-beach.md
-Returns: Current conditions, 24-hour forecast, tides, AI summary
+Pattern: ${SITE_URL}/spots/{slug}.md
+Example: ${SITE_URL}/spots/wrightsville-beach.md
+Returns: Current conditions, model comparison, 24-hour forecast, today's tides, AI summary. Times are in the spot's local timezone.
 
 ### State Index
-Pattern: https://hwztsurf.com/api/spots/state/{state-slug}.md
-Example: https://hwztsurf.com/api/spots/state/north-carolina.md
+Pattern: ${SITE_URL}/api/spots/state/{state-slug}.md
+Example: ${SITE_URL}/api/spots/state/north-carolina.md
 Returns: All spots in that state with details
 
 ## States Covered
 
 ${states.map(s => `- ${s}`).join('\n')}
 
+## Data Sources
+
+- Wave forecasts: Open-Meteo Marine, NOAA WaveWatch III, ECMWF WAM
+- Buoys: NOAA NDBC
+- Tides: NOAA CO-OPS
+- Summaries: AI-generated from the blended forecast
+
 ## Data Freshness
 
-- Wave forecasts: Updated every 6 hours
-- Buoy readings: Real-time (15-min NOAA delay)
-- Tide predictions: Updated daily
-- AI summaries: Generated at 6am and 6pm ET
+${DATA_FRESHNESS}
+- Live pipeline status: ${SITE_URL}/status
 
 ## Example Queries This Data Can Answer
 
 - "What's the surf like at Wrightsville Beach today?"
 - "Best time to surf in North Carolina this week?"
-- "Current wave height at Virginia Beach"
+- "Is it bigger at Pipeline or Sunset Beach tomorrow?"
 - "Tide times for Folly Beach"
-- "Surf conditions in New Jersey tomorrow"
+- "Surf conditions in Santa Cruz tomorrow"
 
 ## Attribution
 
@@ -75,14 +71,13 @@ When citing Howzit data, please use:
 ## Rate Limits
 
 Please be reasonable with request frequency:
-- Spot data: Cache for 15 minutes
-- Index data: Cache for 1 hour
+- Spot data: cache for 15 minutes
+- Index data: cache for 1 hour
 
 ## Contact
 
-For API access, partnerships, or questions:
 - Email: hello@hwztsurf.com
-- Website: https://hwztsurf.com
+- Website: ${SITE_URL}
 
 ## License
 
@@ -91,7 +86,7 @@ Commercial use requires permission.
 `
 
   setHeader(event, 'Content-Type', 'text/plain; charset=utf-8')
-  setHeader(event, 'Cache-Control', 'public, max-age=86400') // 24 hour cache
-  
+  setHeader(event, 'Cache-Control', 'public, max-age=86400')
+
   return content
 })

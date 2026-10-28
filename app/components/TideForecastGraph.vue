@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white border-2 border-black rounded-lg overflow-hidden">
+  <BrutalCard class="overflow-hidden">
     <!-- Header -->
     <div class="flex justify-between items-center px-4 py-3 border-b-2 border-black">
       <h2 class="font-black uppercase">Tide Forecast</h2>
@@ -28,7 +28,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </BrutalCard>
 </template>
 
 <script setup>

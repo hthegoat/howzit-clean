@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,11 +13,46 @@ interface Spot {
 }
 
 // ============================================
+// TIME BUDGET
+// ============================================
+// Supabase kills a function at 150s wall clock (546 / 504), and a killed run
+// saves nothing after the point it died. In Oct 2026 that happened to 3 of 5
+// batches a day for over a week. So: every fetch has a timeout, spots run a
+// few at a time, and we stop STARTING new spots once the budget is spent and
+// report what was skipped instead of dying silently.
+const TIME_BUDGET_MS = 110_000;
+const CONCURRENCY = 3;
+const OM_TIMEOUT_MS = 15_000;
+const ECMWF_TIMEOUT_MS = 15_000;
+const WW3_TIMEOUT_MS = 12_000;
+
+// ============================================
+// RUN LOG (pipeline_runs, read by /status)
+// ============================================
+// A row is written at start and closed at the end. A row still 'running'
+// after 10 minutes means the function was killed. Same 15 lines live in every
+// pipeline function; keep them in sync.
+async function startRun(sb: SupabaseClient, job: string, batch: string | null) {
+  const { data } = await sb.from("pipeline_runs").insert({ job, batch }).select("id").single();
+  return (data?.id as string) ?? null;
+}
+async function finishRun(sb: SupabaseClient, id: string | null, f: {
+  status: "ok" | "partial" | "error"; processed?: number; failed?: number; error?: string | null; summary?: unknown;
+}) {
+  if (!id) return;
+  await sb.from("pipeline_runs").update({
+    finished_at: new Date().toISOString(),
+    status: f.status, processed: f.processed ?? null, failed: f.failed ?? null,
+    error: f.error ? String(f.error).slice(0, 500) : null, summary: f.summary ?? null,
+  }).eq("id", id);
+}
+
+// ============================================
 // BLENDING ALGORITHM v3 - Open-Meteo Primary
 // ============================================
-// Rationale: Global models (WW3, ECMWF) consistently over-forecast 
-// for nearshore East Coast spots. Open-Meteo's higher resolution 
-// coastal data is more accurate for beach breaks. WW3/ECMWF are 
+// Rationale: Global models (WW3, ECMWF) consistently over-forecast
+// for nearshore East Coast spots. Open-Meteo's higher resolution
+// coastal data is more accurate for beach breaks. WW3/ECMWF are
 // used for confidence validation, not primary signal.
 // ============================================
 function blendForecasts(ww3: number | null, openMeteo: number | null, ecmwf: number | null): {
@@ -26,73 +61,52 @@ function blendForecasts(ww3: number | null, openMeteo: number | null, ecmwf: num
   spread: number | null;
   method: string;
 } {
-  // Open-Meteo is our primary source
   if (openMeteo == null || isNaN(openMeteo)) {
-    // Fallback: no Open-Meteo data, use others
     const fallbacks = [ww3, ecmwf].filter((v): v is number => v != null && !isNaN(v));
     if (fallbacks.length === 0) return { value: null, confidence: 'none', spread: null, method: 'no data' };
     if (fallbacks.length === 1) return { value: fallbacks[0], confidence: 'low', spread: null, method: 'fallback single' };
-    return { 
-      value: (fallbacks[0] + fallbacks[1]) / 2, 
-      confidence: 'low', 
+    return {
+      value: (fallbacks[0] + fallbacks[1]) / 2,
+      confidence: 'low',
       spread: Math.abs(fallbacks[0] - fallbacks[1]),
-      method: 'fallback average (no OM)' 
+      method: 'fallback average (no OM)'
     };
   }
-  
-  // We have Open-Meteo - use it as primary
+
   const globalModels = [ww3, ecmwf].filter((v): v is number => v != null && !isNaN(v));
-  
-  // No global models to validate against
   if (globalModels.length === 0) {
     return { value: openMeteo, confidence: 'medium', spread: null, method: 'Open-Meteo only' };
   }
-  
-  // Calculate spread for confidence
+
   const allValues = [openMeteo, ...globalModels];
   const spread = Math.max(...allValues) - Math.min(...allValues);
   const avgGlobal = globalModels.reduce((a, b) => a + b, 0) / globalModels.length;
   const omVsGlobalDiff = Math.abs(openMeteo - avgGlobal);
-  
-  // HIGH confidence: Open-Meteo agrees with global models (within ~1ft / 0.3m)
+
+  // HIGH: within ~1ft. Slight 70/30 blend toward Open-Meteo.
   if (omVsGlobalDiff < 0.3) {
-    // Slight blend toward Open-Meteo (70/30) when they agree
-    const blended = openMeteo * 0.7 + avgGlobal * 0.3;
-    return {
-      value: blended,
-      confidence: 'high',
-      spread,
-      method: 'OM-primary blend (models agree)'
-    };
+    return { value: openMeteo * 0.7 + avgGlobal * 0.3, confidence: 'high', spread, method: 'OM-primary blend (models agree)' };
   }
-  
-  // MEDIUM confidence: Moderate disagreement (1-2ft / 0.3-0.6m)
-  // Trust Open-Meteo more but acknowledge uncertainty
+  // MEDIUM: 1-2ft apart. 85/15.
   if (omVsGlobalDiff < 0.6) {
-    // 85% Open-Meteo, 15% global average
-    const blended = openMeteo * 0.85 + avgGlobal * 0.15;
-    return {
-      value: blended,
-      confidence: 'medium',
-      spread,
-      method: 'OM-primary (moderate spread)'
-    };
+    return { value: openMeteo * 0.85 + avgGlobal * 0.15, confidence: 'medium', spread, method: 'OM-primary (moderate spread)' };
   }
-  
-  // LOW confidence: Large disagreement (>2ft / 0.6m)
-  // Still trust Open-Meteo but flag uncertainty
-  // Global models likely over-forecasting offshore swell that won't reach shore
-  return {
-    value: openMeteo,
-    confidence: 'low',
-    spread,
-    method: 'OM-primary (high uncertainty)'
-  };
+  // LOW: >2ft apart. Trust Open-Meteo, flag it.
+  return { value: openMeteo, confidence: 'low', spread, method: 'OM-primary (high uncertainty)' };
 }
 
 // ============================================
 // DATA FETCHERS
 // ============================================
+
+async function getJson(url: string, timeoutMs: number, label: string) {
+  const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+  if (!res.ok) {
+    const detail = (await res.text()).replace(/\s+/g, " ").slice(0, 160);
+    throw new Error(`${label} HTTP ${res.status}: ${detail}`);
+  }
+  return res.json();
+}
 
 async function fetchOpenMeteoMarine(lat: number, lng: number) {
   const marineParams = new URLSearchParams({
@@ -118,18 +132,11 @@ async function fetchOpenMeteoMarine(lat: number, lng: number) {
     timezone: "UTC"
   });
 
-  const [marineRes, weatherRes] = await Promise.all([
-    fetch(`https://marine-api.open-meteo.com/v1/marine?${marineParams}`),
-    fetch(`https://api.open-meteo.com/v1/forecast?${weatherParams}`)
+  const [marine, weather] = await Promise.all([
+    getJson(`https://marine-api.open-meteo.com/v1/marine?${marineParams}`, OM_TIMEOUT_MS, "Marine API"),
+    getJson(`https://api.open-meteo.com/v1/forecast?${weatherParams}`, OM_TIMEOUT_MS, "Weather API"),
   ]);
-  
-  if (!marineRes.ok) throw new Error(`Marine API error: ${marineRes.status}`);
-  if (!weatherRes.ok) throw new Error(`Weather API error: ${weatherRes.status}`);
-  
-  return {
-    marine: await marineRes.json(),
-    weather: await weatherRes.json()
-  };
+  return { marine, weather };
 }
 
 async function fetchECMWF(lat: number, lng: number): Promise<{ data: any; error: string | null }> {
@@ -144,75 +151,93 @@ async function fetchECMWF(lat: number, lng: number): Promise<{ data: any; error:
       timezone: "UTC"
     });
 
-    const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?${params}`);
-    if (!res.ok) return { data: null, error: `ECMWF HTTP ${res.status}` };
-
-    const json = await res.json();
+    const json = await getJson(`https://marine-api.open-meteo.com/v1/marine?${params}`, ECMWF_TIMEOUT_MS, "ECMWF");
 
     // Open-Meteo returns HTTP 200 with an all-null series for land cells.
-    // Treat that as an error so it shows up in ecmwf_errors instead of silently
-    // passing null into the blend.
     const heights = json?.hourly?.wave_height;
     if (!heights?.some((v: any) => v != null && Number.isFinite(v))) {
       return { data: null, error: "ECMWF: no wave data (land cell)" };
     }
-
     return { data: json, error: null };
   } catch (e) {
     return { data: null, error: `ECMWF: ${e instanceof Error ? e.message : 'fetch failed'}` };
   }
 }
 
-async function fetchWaveWatchIII(lat: number, lng: number): Promise<{ data: any; error: string | null }> {
+// WW3 comes from PacIOOS ERDDAP (University of Hawaii runs the model).
+// The NOAA CoastWatch mirror was removed in Oct 2026: since Aug it hangs on
+// every connection from Supabase, so as a fallback it never returned data and
+// cost 20s per spot whenever PacIOOS was slow. That alone was enough to push
+// batches past the 150s limit.
+const WW3_URL = "https://pae-paha.pacioos.hawaii.edu/erddap/griddap/ww3_global.json";
+
+// Nearby spots share the same 3x3 WW3 box (NJ's 24 spots fit in a handful),
+// so the raw response is cached per box. Reset at the start of every
+// invocation, since a warm worker can be reused hours later.
+const ww3BoxCache = new Map<string, Promise<any>>();
+
+// PacIOOS hangs at the TLS handshake for SOME Supabase egress IPs and answers
+// instantly for others (seen Oct 2026: whole batches either 30 spots/min or
+// every request timing out). Once one request times out, this instance is
+// almost certainly on a bad IP, so skip WW3 for the rest of the run instead of
+// burning 12s per spot. Those spots fall straight through to GFS-Wave.
+let ww3Down = false;
+
+const num = (v: any): number | null => {
+  if (v === null || v === undefined) return null;
+  const n = typeof v === "number" ? v : parseFloat(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+async function fetchWW3PacIOOS(lat: number, lng: number): Promise<{ data: any; error: string | null }> {
   try {
-    // Convert to ERDDAP coordinates (0-360 longitude)
+    // ERDDAP uses 0-360 longitude
     const erddapLon = lng < 0 ? 360 + lng : lng;
     const gridLat = Math.round(lat * 2) / 2;
     const gridLon = Math.round(erddapLon * 2) / 2;
 
-    // WW3 runs on a 0.5deg grid. Snapping to a single nearest point puts many
-    // coastal spots on a LAND cell, and ERDDAP answers those with HTTP 200 and
-    // NaN rather than an error -- so the failure is invisible. Instead request a
-    // 3x3 box (+/- 0.5deg) and pick the nearest cell that actually has water.
-    const latMin = gridLat - 0.5;
-    const latMax = gridLat + 0.5;
-    const lonMin = gridLon - 0.5;
-    const lonMax = gridLon + 0.5;
+    // WW3 runs on a 0.5deg grid. The nearest point is often a LAND cell, which
+    // ERDDAP answers with HTTP 200 and NaN. So request a 3x3 box and pick the
+    // nearest cell that actually has water.
+    const latMin = gridLat - 0.5, latMax = gridLat + 0.5;
+    const lonMin = gridLon - 0.5, lonMax = gridLon + 0.5;
 
-    const now = new Date();
-    const startTime = now.toISOString();
-    // Match the 7-day window used for Open-Meteo/ECMWF rather than taking
-    // everything ERDDAP has.
-    const endTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const startTime = new Date(Math.floor(Date.now() / 3600000) * 3600000)
+      .toISOString().replace(".000Z", "Z");
 
-    const dims = `[(${startTime}):1:(${endTime})][(0.0):1:(0.0)]` +
+    // Stop at `last`, NOT a computed now+7d: the model's run is always behind
+    // ours, and overshooting the axis gets a 404 ("Stop is greater than the
+    // axis maximum"). That 404 silently killed WW3 for a week in Aug 2026.
+    const dims = `[(${startTime}):1:last][(0.0):1:(0.0)]` +
       `[(${latMin}):1:(${latMax})][(${lonMin}):1:(${lonMax})]`;
+    const query = `?Thgt${dims},Tper${dims},Tdir${dims}`;
 
-    const url = `https://coastwatch.pfeg.noaa.gov/erddap/griddap/NWW3_Global_Best.json?` +
-      `Thgt${dims},Tper${dims},Tdir${dims}`;
+    if (ww3Down) return { data: null, error: "WW3 skipped: PacIOOS unreachable from this instance" };
 
-    const res = await fetch(url);
-    if (!res.ok) return { data: null, error: `WW3 HTTP ${res.status}` };
+    const boxKey = `${gridLat},${gridLon}`;
+    if (!ww3BoxCache.has(boxKey)) {
+      ww3BoxCache.set(boxKey, getJson(WW3_URL + query, WW3_TIMEOUT_MS, "WW3 pacioos"));
+    }
 
-    const data = await res.json();
+    let data: any;
+    try {
+      data = await ww3BoxCache.get(boxKey);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "WW3 fetch failed";
+      if (e instanceof Error && (e.name === "TimeoutError" || /timed out/i.test(msg))) ww3Down = true;
+      return { data: null, error: `WW3 pacioos: ${msg}` };
+    }
+
     const rows = data?.table?.rows;
     if (!rows?.length) return { data: null, error: "WW3: empty response" };
 
-    // ERDDAP encodes land / no-data as null or the string "NaN"
-    const num = (v: any): number | null => {
-      if (v === null || v === undefined) return null;
-      const n = typeof v === "number" ? v : parseFloat(v);
-      return Number.isFinite(n) ? n : null;
-    };
     const near = (a: number | null, b: number) => a !== null && Math.abs(a - b) < 1e-6;
 
-    // Inventory every cell in the box: how much real data it has, how far it is
     const cells = new Map<string, { lat: number; lon: number; valid: number; dist: number }>();
     for (const r of rows) {
       const cLat = num(r[2]);
       const cLon = num(r[3]);
       if (cLat === null || cLon === null) continue;
-
       const key = `${cLat},${cLon}`;
       if (!cells.has(key)) {
         const dLat = cLat - lat;
@@ -227,8 +252,7 @@ async function fetchWaveWatchIII(lat: number, lng: number): Promise<{ data: any;
       return { data: null, error: "WW3: no water cell within 0.5deg (all land/NaN)" };
     }
 
-    // Nearest water cell wins. Locked in for the whole series so the timeline
-    // doesn't hop between cells and create discontinuities.
+    // Nearest water cell wins, locked in for the whole series.
     usable.sort((a, b) => a.dist - b.dist);
     const best = usable[0];
 
@@ -237,7 +261,6 @@ async function fetchWaveWatchIII(lat: number, lng: number): Promise<{ data: any;
     );
     if (!cellRows.length) return { data: null, error: "WW3: selected cell had no valid rows" };
 
-    // Convert to hourly format matching Open-Meteo
     return {
       data: {
         hourly: {
@@ -248,13 +271,198 @@ async function fetchWaveWatchIII(lat: number, lng: number): Promise<{ data: any;
           wave_height: cellRows.map((r: any[]) => num(r[4])),
           wave_period: cellRows.map((r: any[]) => num(r[5])),
           wave_direction: cellRows.map((r: any[]) => num(r[6]))
-        },
-        grid: { lat: best.lat, lon: best.lon, cells_checked: cells.size }
+        }
       },
       error: null
     };
   } catch (e) {
     return { data: null, error: `WW3: ${e instanceof Error ? e.message : 'fetch failed'}` };
+  }
+}
+
+// Fallback WW3: NOAA's operational GFS-Wave, which IS WAVEWATCH III (NCEP
+// runs it as the wave component of GFS), served by Open-Meteo at 0.25deg.
+// PacIOOS just re-publishes NCEP's WW3 output, so this is the same model from
+// a host that actually answers Supabase. Added Oct 2026 after PacIOOS spent
+// most of a day timing out from every Supabase instance.
+async function fetchWW3GfsWave(lat: number, lng: number): Promise<{ data: any; error: string | null }> {
+  try {
+    const params = new URLSearchParams({
+      latitude: lat.toString(),
+      longitude: lng.toString(),
+      hourly: "wave_height,wave_period,wave_direction",
+      models: "ncep_gfswave025",
+      cell_selection: "sea",
+      forecast_days: "7",
+      timezone: "UTC"
+    });
+    const json = await getJson(`https://marine-api.open-meteo.com/v1/marine?${params}`, ECMWF_TIMEOUT_MS, "GFS-Wave");
+    const h = json?.hourly;
+    // Coastal cells GFS-Wave treats as land come back as 0, not null. A 0m
+    // sea would drag the blend down, so zeros are dropped along with their
+    // period and direction.
+    const height: (number | null)[] = (h?.wave_height ?? []).map((v: any) =>
+      typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null);
+    if (!height.some(v => v !== null)) {
+      return { data: null, error: "GFS-Wave: no wave data (land cell)" };
+    }
+    const keep = (arr: any[] | undefined) => (arr ?? []).map((v, i) => (height[i] === null ? null : v));
+    return {
+      data: {
+        hourly: {
+          // Open-Meteo times come back as "YYYY-MM-DDTHH:MM" in UTC
+          time: h.time.map((t: string) => (t.endsWith("Z") ? t : `${t}Z`)),
+          wave_height: height,
+          wave_period: keep(h.wave_period),
+          wave_direction: keep(h.wave_direction),
+        }
+      },
+      error: null
+    };
+  } catch (e) {
+    return { data: null, error: `GFS-Wave: ${e instanceof Error ? e.message : "fetch failed"}` };
+  }
+}
+
+// WW3 = PacIOOS first (the source the site has always used), GFS-Wave when
+// PacIOOS fails. `source` is counted in the run log so /status shows which.
+async function fetchWaveWatchIII(lat: number, lng: number): Promise<{ data: any; error: string | null; source: string | null }> {
+  const primary = await fetchWW3PacIOOS(lat, lng);
+  if (primary.data) return { ...primary, source: "pacioos" };
+
+  const fallback = await fetchWW3GfsWave(lat, lng);
+  if (fallback.data) return { ...fallback, source: "gfswave" };
+
+  return { data: null, error: `${primary.error} | ${fallback.error}`, source: null };
+}
+
+// Index a model's hourly series by the hour it falls on. Replaces a
+// findIndex-per-row scan that parsed ~50k dates per spot and was a big chunk
+// of the function's CPU time.
+function indexByHour(times: string[] | undefined): Map<number, number> {
+  const m = new Map<number, number>();
+  times?.forEach((t, i) => {
+    const hour = Math.round(new Date(t).getTime() / 3600000);
+    if (!m.has(hour)) m.set(hour, i);
+  });
+  return m;
+}
+
+// ============================================
+// ONE SPOT
+// ============================================
+
+type SpotResult = { ok: boolean; saved: number; error?: string; ww3Error?: string; ww3Source?: string | null; ecmwfError?: string };
+
+async function processSpot(supabase: SupabaseClient, spot: Spot): Promise<SpotResult> {
+  try {
+    const [omData, ecmwfResult, ww3Result] = await Promise.all([
+      fetchOpenMeteoMarine(spot.latitude, spot.longitude),
+      fetchECMWF(spot.latitude, spot.longitude),
+      fetchWaveWatchIII(spot.latitude, spot.longitude)
+    ]);
+
+    if (!omData.marine.hourly?.time) return { ok: false, saved: 0, error: "No Open-Meteo data" };
+
+    const om = omData.marine.hourly;
+    const weather = omData.weather.hourly;
+    const ec = ecmwfResult.data?.hourly;
+    const ww3 = ww3Result.data?.hourly;
+    const ecIndex = indexByHour(ec?.time);
+    const ww3Index = indexByHour(ww3?.time);
+    const fetchedAt = new Date().toISOString();
+
+    const forecasts = om.time.map((timestamp: string, i: number) => {
+      const ts = new Date(timestamp);
+      const hour = Math.round(ts.getTime() / 3600000);
+      const wi = ww3Index.get(hour) ?? -1;
+      const ei = ecIndex.get(hour) ?? -1;
+
+      const omHeight = om.wave_height?.[i] ?? null;
+      const ww3Height = wi >= 0 ? ww3.wave_height[wi] : null;
+      const ecHeight = ei >= 0 ? ec.wave_height[ei] : null;
+
+      const omPeriod = om.wave_period?.[i] ?? null;
+      const ww3Period = wi >= 0 ? ww3.wave_period[wi] : null;
+      const ecPeriod = ei >= 0 ? ec.wave_period[ei] : null;
+
+      const omDir = om.wave_direction?.[i] ?? null;
+      const ww3Dir = wi >= 0 ? ww3.wave_direction[wi] : null;
+      const ecDir = ei >= 0 ? ec.wave_direction[ei] : null;
+
+      const heightBlend = blendForecasts(ww3Height, omHeight, ecHeight);
+      const periodBlend = blendForecasts(ww3Period, omPeriod, ecPeriod);
+      const modelCount = [omHeight, ww3Height, ecHeight].filter(v => v != null && !isNaN(v)).length;
+
+      // Direction follows whichever source carried the height. With OM
+      // present that is always OM; in the no-OM fallback, prefer WW3.
+      let blendedDir = omDir;
+      if (omHeight == null) blendedDir = ww3Dir ?? ecDir ?? null;
+
+      return {
+        spot_id: spot.id,
+        timestamp: ts.toISOString(),
+
+        wave_height: omHeight,
+        wave_period: omPeriod,
+        wave_direction: omDir,
+        wind_wave_height: om.wind_wave_height?.[i] ?? null,
+        wind_wave_period: om.wind_wave_period?.[i] ?? null,
+        wind_wave_direction: om.wind_wave_direction?.[i] ?? null,
+        swell_wave_height: om.swell_wave_height?.[i] ?? null,
+        swell_wave_period: om.swell_wave_period?.[i] ?? null,
+        swell_wave_direction: om.swell_wave_direction?.[i] ?? null,
+        secondary_swell_height: om.secondary_swell_wave_height?.[i] ?? null,
+        secondary_swell_period: om.secondary_swell_wave_period?.[i] ?? null,
+        secondary_swell_direction: om.secondary_swell_wave_direction?.[i] ?? null,
+        tertiary_swell_height: om.tertiary_swell_wave_height?.[i] ?? null,
+        tertiary_swell_period: om.tertiary_swell_wave_period?.[i] ?? null,
+        tertiary_swell_direction: om.tertiary_swell_wave_direction?.[i] ?? null,
+        swell_peak_period: om.swell_wave_peak_period?.[i] ?? null,
+        wind_wave_peak_period: om.wind_wave_peak_period?.[i] ?? null,
+        sea_surface_temp: om.sea_surface_temperature?.[i] ?? null,
+        ocean_current_velocity: om.ocean_current_velocity?.[i] ?? null,
+        ocean_current_direction: om.ocean_current_direction?.[i] ?? null,
+
+        wind_speed: weather.wind_speed_10m?.[i] ?? null,
+        wind_direction: weather.wind_direction_10m?.[i] ?? null,
+        wind_gust: weather.wind_gusts_10m?.[i] ?? null,
+        precipitation: weather.precipitation?.[i] ?? null,
+        cloud_cover: weather.cloud_cover?.[i] ?? null,
+
+        ww3_wave_height: ww3Height,
+        ww3_wave_period: ww3Period,
+        ww3_wave_direction: ww3Dir,
+        ecmwf_wave_height: ecHeight,
+        ecmwf_wave_period: ecPeriod,
+        ecmwf_wave_direction: ecDir,
+
+        blended_wave_height: heightBlend.value,
+        blended_wave_period: periodBlend.value,
+        blended_wave_direction: blendedDir,
+        blend_confidence: heightBlend.confidence,
+        blend_spread: heightBlend.spread,
+        blend_model_count: modelCount,
+
+        fetched_at: fetchedAt,
+      };
+    });
+
+    const { error: upsertError } = await supabase
+      .from("forecasts")
+      .upsert(forecasts, { onConflict: "spot_id,timestamp" });
+
+    if (upsertError) return { ok: false, saved: 0, error: upsertError.message };
+
+    return {
+      ok: true,
+      saved: forecasts.length,
+      ww3Error: ww3Result.error ?? undefined,
+      ww3Source: ww3Result.source,
+      ecmwfError: ecmwfResult.error ?? undefined,
+    };
+  } catch (e) {
+    return { ok: false, saved: 0, error: e instanceof Error ? e.message : "Error" };
   }
 }
 
@@ -267,211 +475,139 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const started = Date.now();
+  ww3BoxCache.clear();
+  ww3Down = false;
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  // Two modes:
+  //   { offset, limit: 15 }  normal batch, cron calls 10 of these
+  //   { retry: true }        re-run spots with no WW3 (or no data at all) in
+  //                          the last 12h. Cron calls it every 2 hours.
+  let limit = 15;
+  let offset = 0;
+  let retry = false;
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const body = await req.json();
+    if (body.limit) limit = Math.min(body.limit, 30);
+    if (body.offset != null) offset = body.offset;
+    if (body.retry) { retry = true; if (!body.limit) limit = 30; }
+  } catch {
+    // No body, use defaults
+  }
 
-    // Parse optional batch parameters (offset/limit) for cron batching
-    // Without params: processes first 30 spots (safe within 150s wall clock)
-    // With params: e.g. { "offset": 30, "limit": 30 } for batch 2
-    let limit = 30;
-    let offset = 0;
-    
-    try {
-      const body = await req.json();
-      if (body.limit) limit = Math.min(body.limit, 50);  // Max 50 per call
-      if (body.offset != null) offset = body.offset;
-    } catch {
-      // No body or invalid JSON, use defaults
-    }
+  const runId = await startRun(supabase, "ingest-openmeteo", retry ? "retry" : `${offset}-${offset + limit - 1}`);
 
-    const { data: spots, error: spotsError } = await supabase
-      .from("spots")
-      .select("id, name, latitude, longitude")
-      .not("latitude", "is", null)
-      .not("longitude", "is", null)
-      .order("name")
-      .range(offset, offset + limit - 1);
+  try {
+    const { data: spots, error: spotsError } = retry
+      ? await supabase.rpc("spots_needing_refetch", { max_spots: limit })
+      : await supabase
+        .from("spots")
+        .select("id, name, latitude, longitude")
+        .not("latitude", "is", null)
+        .not("longitude", "is", null)
+        .order("name")
+        .range(offset, offset + limit - 1);
 
     if (spotsError) throw new Error(`Failed to fetch spots: ${spotsError.message}`);
     if (!spots?.length) {
+      await finishRun(supabase, runId, { status: "ok", processed: 0, failed: 0, summary: { note: "no spots in range" } });
       return new Response(JSON.stringify({ message: "No spots in range", offset, limit }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
-    // Get total count for reporting
-    const { count: totalSpots } = await supabase
-      .from("spots")
-      .select("id", { count: "exact", head: true })
-      .not("latitude", "is", null);
-
-    const results = { 
-      processed: 0, 
-      forecasts_saved: 0, 
+    const results = {
+      processed: 0,
+      failed: 0,
+      forecasts_saved: 0,
+      skipped_for_time: [] as string[],
       errors: [] as string[],
-      source_stats: { openmeteo: 0, ecmwf: 0, ww3: 0, ecmwf_errors: 0, ww3_errors: 0 }
+      source_stats: { openmeteo: 0, ecmwf: 0, ww3: 0, ww3_pacioos: 0, ww3_gfswave: 0, ecmwf_errors: 0, ww3_errors: 0 },
+      ww3_error_sample: [] as string[],
+      ecmwf_error_sample: [] as string[],
     };
 
-    for (const spot of spots as Spot[]) {
-      try {
-        // Fetch all 3 sources in parallel
-        const [omData, ecmwfResult, ww3Result] = await Promise.all([
-          fetchOpenMeteoMarine(spot.latitude, spot.longitude),
-          fetchECMWF(spot.latitude, spot.longitude),
-          fetchWaveWatchIII(spot.latitude, spot.longitude)
-        ]);
-        
-        if (!omData.marine.hourly?.time) {
-          results.errors.push(`${spot.name}: No Open-Meteo data`);
+    // Simple worker pool: CONCURRENCY spots in flight, no new ones once the
+    // time budget is used up.
+    const queue = [...(spots as Spot[])];
+    const worker = async () => {
+      while (queue.length) {
+        if (Date.now() - started > TIME_BUDGET_MS) {
+          results.skipped_for_time.push(...queue.splice(0).map(s => s.name));
+          return;
+        }
+        const spot = queue.shift()!;
+        const r = await processSpot(supabase, spot);
+        if (!r.ok) {
+          results.failed++;
+          results.errors.push(`${spot.name}: ${r.error}`);
           continue;
         }
-        
+        results.processed++;
+        results.forecasts_saved += r.saved;
         results.source_stats.openmeteo++;
-        
-        // Track secondary source availability
-        if (ecmwfResult.error) {
-          results.source_stats.ecmwf_errors++;
-        } else {
-          results.source_stats.ecmwf++;
-        }
-        
-        if (ww3Result.error) {
+        if (r.ww3Error) {
           results.source_stats.ww3_errors++;
+          if (results.ww3_error_sample.length < 3) results.ww3_error_sample.push(`${spot.name}: ${r.ww3Error}`);
         } else {
           results.source_stats.ww3++;
+          if (r.ww3Source === "pacioos") results.source_stats.ww3_pacioos++;
+          if (r.ww3Source === "gfswave") results.source_stats.ww3_gfswave++;
         }
-
-        const om = omData.marine.hourly;
-        const weather = omData.weather.hourly;
-        const ec = ecmwfResult.data?.hourly;
-        const ww3 = ww3Result.data?.hourly;
-
-        const forecasts = om.time.map((timestamp: string, i: number) => {
-          const ts = new Date(timestamp);
-          
-          // Find matching WW3 and ECMWF data by timestamp
-          const ww3Idx = ww3?.time?.findIndex((t: string) => 
-            Math.abs(new Date(t).getTime() - ts.getTime()) < 30 * 60 * 1000
-          ) ?? -1;
-          const ecIdx = ec?.time?.findIndex((t: string) => 
-            Math.abs(new Date(t).getTime() - ts.getTime()) < 30 * 60 * 1000
-          ) ?? -1;
-          
-          const omHeight = om.wave_height?.[i] ?? null;
-          const ww3Height = ww3Idx >= 0 ? ww3.wave_height[ww3Idx] : null;
-          const ecHeight = ecIdx >= 0 ? ec.wave_height[ecIdx] : null;
-          
-          const omPeriod = om.wave_period?.[i] ?? null;
-          const ww3Period = ww3Idx >= 0 ? ww3.wave_period[ww3Idx] : null;
-          const ecPeriod = ecIdx >= 0 ? ec.wave_period[ecIdx] : null;
-          
-          const omDir = om.wave_direction?.[i] ?? null;
-          const ww3Dir = ww3Idx >= 0 ? ww3.wave_direction[ww3Idx] : null;
-          const ecDir = ecIdx >= 0 ? ec.wave_direction[ecIdx] : null;
-          
-          // Calculate blended values
-          const heightBlend = blendForecasts(ww3Height, omHeight, ecHeight);
-          const periodBlend = blendForecasts(ww3Period, omPeriod, ecPeriod);
-          
-          // Count how many models contributed to this timestamp
-          const modelCount = [omHeight, ww3Height, ecHeight].filter(v => v != null && !isNaN(v)).length;
-          
-          // For direction, use circular mean or just take from most confident height source
-          let blendedDir = omDir;
-          if (heightBlend.method.includes('WW3') && ww3Dir != null) {
-            blendedDir = ww3Dir;
-          } else if (heightBlend.method.includes('ECMWF') && ecDir != null) {
-            blendedDir = ecDir;
-          }
-
-          return {
-            spot_id: spot.id,
-            timestamp: ts.toISOString(),
-            
-            // Original Open-Meteo data (keep for compatibility)
-            wave_height: omHeight,
-            wave_period: omPeriod,
-            wave_direction: omDir,
-            wind_wave_height: om.wind_wave_height?.[i] ?? null,
-            wind_wave_period: om.wind_wave_period?.[i] ?? null,
-            wind_wave_direction: om.wind_wave_direction?.[i] ?? null,
-            swell_wave_height: om.swell_wave_height?.[i] ?? null,
-            swell_wave_period: om.swell_wave_period?.[i] ?? null,
-            swell_wave_direction: om.swell_wave_direction?.[i] ?? null,
-            secondary_swell_height: om.secondary_swell_wave_height?.[i] ?? null,
-            secondary_swell_period: om.secondary_swell_wave_period?.[i] ?? null,
-            secondary_swell_direction: om.secondary_swell_wave_direction?.[i] ?? null,
-            tertiary_swell_height: om.tertiary_swell_wave_height?.[i] ?? null,
-            tertiary_swell_period: om.tertiary_swell_wave_period?.[i] ?? null,
-            tertiary_swell_direction: om.tertiary_swell_wave_direction?.[i] ?? null,
-            swell_peak_period: om.swell_wave_peak_period?.[i] ?? null,
-            wind_wave_peak_period: om.wind_wave_peak_period?.[i] ?? null,
-            sea_surface_temp: om.sea_surface_temperature?.[i] ?? null,
-            ocean_current_velocity: om.ocean_current_velocity?.[i] ?? null,
-            ocean_current_direction: om.ocean_current_direction?.[i] ?? null,
-            
-            // Weather
-            wind_speed: weather.wind_speed_10m?.[i] ?? null,
-            wind_direction: weather.wind_direction_10m?.[i] ?? null,
-            wind_gust: weather.wind_gusts_10m?.[i] ?? null,
-            precipitation: weather.precipitation?.[i] ?? null,
-            cloud_cover: weather.cloud_cover?.[i] ?? null,
-            
-            // NEW: Multi-source data
-            ww3_wave_height: ww3Height,
-            ww3_wave_period: ww3Period,
-            ww3_wave_direction: ww3Dir,
-            ecmwf_wave_height: ecHeight,
-            ecmwf_wave_period: ecPeriod,
-            ecmwf_wave_direction: ecDir,
-            
-            // NEW: Blended values
-            blended_wave_height: heightBlend.value,
-            blended_wave_period: periodBlend.value,
-            blended_wave_direction: blendedDir,
-            blend_confidence: heightBlend.confidence,
-            blend_spread: heightBlend.spread,
-            blend_model_count: modelCount,
-            
-            fetched_at: new Date().toISOString(),
-          };
-        });
-
-        if (forecasts.length) {
-          const { error: upsertError } = await supabase
-            .from("forecasts")
-            .upsert(forecasts, { onConflict: "spot_id,timestamp" });
-
-          if (upsertError) {
-            results.errors.push(`${spot.name}: ${upsertError.message}`);
-          } else {
-            results.forecasts_saved += forecasts.length;
-          }
-        }
-
-        results.processed++;
-        
-        // Rate limit: 200ms between spots (more API calls now)
-        await new Promise(r => setTimeout(r, 200));
-        
-      } catch (e) {
-        results.errors.push(`${spot.name}: ${e instanceof Error ? e.message : "Error"}`);
+        if (r.ecmwfError) {
+          results.source_stats.ecmwf_errors++;
+          if (results.ecmwf_error_sample.length < 3) results.ecmwf_error_sample.push(`${spot.name}: ${r.ecmwfError}`);
+        } else results.source_stats.ecmwf++;
       }
-    }
+    };
+    await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
-    return new Response(JSON.stringify({
+    const notDone = results.failed + results.skipped_for_time.length;
+    // Missing WW3 counts as partial: the model comparison is the product.
+    const status = results.processed === 0 ? "error"
+      : notDone > 0 || results.source_stats.ww3_errors > 0 ? "partial" : "ok";
+    const firstProblem = results.errors[0]
+      ?? (results.skipped_for_time.length ? `Out of time, skipped: ${results.skipped_for_time.join(", ")}` : null)
+      ?? results.ww3_error_sample[0]
+      ?? (results.source_stats.ww3_gfswave
+        ? `WW3 via GFS-Wave fallback for ${results.source_stats.ww3_gfswave}/${results.processed} spots (PacIOOS unreachable)`
+        : null)
+      ?? results.ecmwf_error_sample[0] ?? null;
+
+    const body = {
       message: "Complete",
-      batch: { offset, limit, total: totalSpots },
-      next_offset: offset + spots.length < (totalSpots || 0) ? offset + spots.length : null,
-      ...results
-    }), {
+      batch: retry ? { retry: true, limit } : { offset, limit },
+      elapsed_ms: Date.now() - started,
+      ...results,
+    };
+
+    await finishRun(supabase, runId, {
+      status,
+      processed: results.processed,
+      failed: notDone,
+      error: firstProblem,
+      summary: {
+        elapsed_ms: body.elapsed_ms,
+        source_stats: results.source_stats,
+        skipped_for_time: results.skipped_for_time,
+        errors: results.errors.slice(0, 5),
+        ww3_error_sample: results.ww3_error_sample,
+        ecmwf_error_sample: results.ecmwf_error_sample,
+      },
+    });
+
+    return new Response(JSON.stringify(body), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Error" }), {
+    const msg = error instanceof Error ? error.message : "Error";
+    await finishRun(supabase, runId, { status: "error", error: msg });
+    return new Response(JSON.stringify({ error: msg }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
