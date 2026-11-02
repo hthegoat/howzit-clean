@@ -73,6 +73,12 @@ const tagClass = (tag) => {
 
 const changelog = [
   {
+    date: 'Nov 2, 2026',
+    tag: 'feature',
+    title: 'Forecast Sponsors',
+    description: 'Every spot page now has room for one local sponsor: a surf shop, school or rental near the break. Sponsors get their name on the forecast and a link. They never touch the forecast itself.'
+  },
+  {
     date: 'Oct 28, 2026',
     tag: 'fix',
     title: 'Removed Placeholder Spot History',

@@ -96,6 +96,9 @@
         </button>
       </div>
     </div>
+
+    <!-- Sponsor strip (or anything else that should sit flush at the bottom) -->
+    <slot name="footer" />
   </BrutalCard>
 </template>
 

@@ -29,6 +29,20 @@
               :hourly-data="todayHourlyData"
 
               @feedback="handleFeedback"
+            >
+              <template #footer>
+                <SponsorStrip :spot-name="spot.name" :spot-slug="spot.slug" :sponsor="sponsor" />
+              </template>
+            </SpotHero>
+
+            <!-- Sponsor, mobile: the right column lands at the very bottom on
+                 phones, so the card moves up under the conditions instead -->
+            <SponsorCard
+              class="lg:hidden"
+              compact
+              :spot-name="spot.name"
+              :spot-slug="spot.slug"
+              :sponsor="sponsor"
             />
 
             <!-- Surf Graph -->
@@ -89,6 +103,13 @@
 
           <!-- Right Column -->
           <div class="space-y-4 sm:space-y-6 min-w-0">
+            <!-- Sponsor, desktop -->
+            <SponsorCard
+              class="hidden lg:flex"
+              :spot-name="spot.name"
+              :spot-slug="spot.slug"
+              :sponsor="sponsor"
+            />
             <WeekOutlook :summary="spotSummary" />
             <SpotInfoCard :info="spotInfo" />
             <Hazards :hazards="hazards" />
@@ -137,7 +158,7 @@ const { data: ssrData } = await useAsyncData(`spot-full-${route.params.slug}`, a
   const sixteenDaysOut = new Date(now.getTime() + 16 * 24 * 60 * 60 * 1000)
 
   // 2. Fetch forecasts, tides, buoy, summary, nearby in parallel
-  const [forecastRes, tideRes, buoyRes, summaryRes, nearbyRes, allSpotsRes] = await Promise.all([
+  const [forecastRes, tideRes, buoyRes, summaryRes, nearbyRes, allSpotsRes, sponsorRes] = await Promise.all([
     // Forecasts
     supabase
       .from('forecasts')
@@ -180,7 +201,14 @@ const { data: ssrData } = await useAsyncData(`spot-full-${route.params.slug}`, a
       .neq('slug', spotData.slug)
       .limit(4),
     // Better Conditions Nearby (region-scoped)
-    supabase.rpc('get_better_conditions_nearby', { p_spot_id: spotData.id })
+    supabase.rpc('get_better_conditions_nearby', { p_spot_id: spotData.id }),
+    // Forecast sponsor (at most one active per spot)
+    supabase
+      .from('spot_sponsors')
+      .select('business_name, website_url, tagline, offer, location_label, logo_url')
+      .eq('spot_id', spotData.id)
+      .eq('active', true)
+      .maybeSingle()
   ])
 
   return {
@@ -190,7 +218,9 @@ const { data: ssrData } = await useAsyncData(`spot-full-${route.params.slug}`, a
     buoy: buoyRes.data || null,
     summary: summaryRes.data || null,
     nearby: (nearbyRes.data || []).map(s => ({ name: s.name, slug: s.slug, distance: 'Nearby' })),
-    betterNearby: allSpotsRes.data || []
+    betterNearby: allSpotsRes.data || [],
+    // A failed sponsor lookup just shows the open slot, never breaks the page
+    sponsor: sponsorRes?.data || null
   }
 })
 
@@ -208,6 +238,7 @@ const spotTides = computed(() => ssrData.value?.tides || [])
 const buoyReading = computed(() => ssrData.value?.buoy || null)
 const spotSummary = computed(() => ssrData.value?.summary || null)
 const nearbySpots = computed(() => ssrData.value?.nearby || [])
+const sponsor = computed(() => ssrData.value?.sponsor || null)
 
 // Beach orientation (default 90 = east facing)
 const beachOrientation = computed(() => spot.value?.orientation || 90)
